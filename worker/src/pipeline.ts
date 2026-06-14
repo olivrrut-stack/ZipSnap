@@ -5,6 +5,7 @@
  */
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
+import { createInterface } from "node:readline/promises";
 import { readManifest, extractMeta, detectSurfaces } from "./manifest";
 import { launchExtension, resolveExtensionId, teardown } from "./extensionContext";
 import { extractBrandColor } from "./brandColor";
@@ -17,6 +18,23 @@ import type { StoreCopy } from "./copy";
 /** Optional progress hook so callers (server) can report steps to the UI. */
 export type OnStep = (step: string) => void;
 
+export interface RunCaptureOptions {
+  /**
+   * "Sign in once, then capture" mode: pauses with a visible browser window
+   * after launch so the user can log into any accounts the extension needs,
+   * then waits for Enter in the terminal before capturing. CLI-only — has no
+   * effect under ZIPSNAP_HEADLESS=1 (the server never enables it).
+   */
+  interactive?: boolean;
+}
+
+/** Blocks until the user presses Enter in the terminal. */
+async function waitForEnter(prompt: string): Promise<void> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  await rl.question(prompt);
+  rl.close();
+}
+
 /**
  * Loads the extension, captures every surface it has, extracts the brand color,
  * and writes capture.json into outputDir. Returns the structured result.
@@ -25,6 +43,7 @@ export async function runCapture(
   extensionPath: string,
   outputDir: string,
   onStep: OnStep = () => {},
+  opts: RunCaptureOptions = {},
 ): Promise<CaptureResult> {
   onStep("Reading the manifest");
   const manifest = await readManifest(extensionPath);
@@ -37,6 +56,17 @@ export async function runCapture(
   try {
     onStep("Finding the extension ID");
     const extensionId = await resolveExtensionId(loaded.context);
+
+    if (opts.interactive && process.env.ZIPSNAP_HEADLESS !== "1") {
+      onStep("Waiting for you to sign in");
+      const page = await loaded.context.newPage();
+      await page.goto("about:blank");
+      await waitForEnter(
+        "\n  A browser window is open with your extension loaded.\n" +
+          "  Sign in to any accounts it needs, then press Enter here to start capturing...\n",
+      );
+      await page.close();
+    }
 
     onStep("Reading the brand color");
     const brandColor = await extractBrandColor(loaded.context, surfaces.iconPath);
@@ -60,11 +90,11 @@ export async function runCapture(
 }
 
 /** Reads width/height from a PNG header to prove its exact size. */
-function pngSize(buf: Buffer): { width: number; height: number } {
+export function pngSize(buf: Buffer): { width: number; height: number } {
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
 
-async function saveVerified(
+export async function saveVerified(
   buf: Buffer,
   file: string,
   want: { width: number; height: number },

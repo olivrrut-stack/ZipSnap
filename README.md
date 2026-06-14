@@ -7,11 +7,19 @@ has to take screenshots by hand.
 
 ## Layout
 
-- `worker/` — the capture engine (Node + Playwright). Needs a full machine to run
-  on, because loading an unpacked extension needs a real, persistent Chrome.
-- `web/` — the upload website (not built yet; will live here in a later phase).
+- `worker/` — the capture engine (Node + Playwright) and HTTP API. Needs a full
+  machine to run on, because loading an unpacked extension needs a real,
+  persistent Chrome.
+- `web/` — the upload website (Next.js). Drag in a `.zip` or folder, watch
+  progress, then preview and download the finished kit.
 
-## Status: Phase 3 (rendering pipeline) — done
+## Status: feature-complete (capture → AI copy → render → web UI)
+
+All four phases below are done end-to-end: drop an extension on the website,
+and ZipSnap captures its screens, writes the store listing, renders the
+exact-size image kit, and serves it back as a downloadable zip.
+
+## Rendering pipeline (Phase 3)
 
 After capture + copy, `npm run render` turns the raw captures and AI headlines
 into the finished, store-ready images in `worker/output/kit/`, each verified to
@@ -33,7 +41,7 @@ npm run copy                              # AI writes the listing
 npm run render                            # build the exact-size image kit
 ```
 
-## Status: Phase 2 (AI store copy) — done
+## AI store copy (Phase 2)
 
 After a capture, `npm run copy` reads `worker/output/capture.json` and uses
 Claude to write the store listing, saved to `worker/output/copy.json`:
@@ -67,13 +75,25 @@ specific sites are captured on a real target site (e.g. a YouTube extension is
 shot on a real YouTube page), while broad "any site" extensions use the safe
 built-in demo page.
 
-### Known limitation: state-dependent UIs
+### State-dependent UIs: sign in once, then capture
 
 Some extensions only show their UI once there's real data or a logged-in
 account behind them (e.g. an extension that labels *your* YouTube
 subscriptions). A fresh, logged-out browser has nothing for them to act on, so
-the capture comes out empty. Planned fix: a **"sign in once, then capture"**
-mode that pauses for a one-time login before shooting.
+the capture would come out empty.
+
+Pass `--login` to pause before shooting: ZipSnap opens a visible Chrome window
+with your extension loaded, then waits for you to sign in to whatever
+accounts/sites it needs. Press Enter in the terminal when you're ready, and
+the normal capture sequence runs from there.
+
+```bash
+npm run spike -- --login "C:\path\to\your\ext"
+```
+
+This is a CLI-only flag — the hosted worker (`npm run server`) always runs
+headless and captures immediately, so it's best for extensions that work fine
+in a fresh, logged-out browser.
 
 ### Run it
 
@@ -84,4 +104,32 @@ npm run setup:browser        # one-time: downloads Playwright's Chromium
 
 npm run spike                            # uses the bundled test extension
 npm run spike -- "C:\path\to\your\ext"   # uses your own unpacked extension
+npm run spike -- --login "C:\path\to\your\ext"  # pause to sign in first
 ```
+
+## Web UI
+
+```bash
+cd web
+npm install
+npm run dev   # http://localhost:3000
+```
+
+The website talks to the worker's HTTP API (`npm run server` in `worker/`,
+default `http://localhost:4000`; override with `NEXT_PUBLIC_WORKER_URL`). Drop
+in a `.zip` or a folder, and it uploads, polls job progress, then shows the
+rendered images and AI-written listing with one-click copy and a kit download.
+
+## Testing & CI
+
+Both `worker/` and `web/` have a Vitest unit test suite covering the pure
+logic (manifest parsing, content-target resolution, AI copy schema, PNG-size
+verification, and the web UI's file-naming/sizing helpers):
+
+```bash
+cd worker && npm test   # or: cd web && npm test
+```
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs `typecheck` +
+`test` for both projects (plus a production build for `web/`) on every push
+and pull request.

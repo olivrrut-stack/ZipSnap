@@ -8,6 +8,7 @@
  * Run:
  *   npm run spike                       # uses the bundled test extension
  *   npm run spike -- "C:\path\to\ext"   # uses your own unpacked extension
+ *   npm run spike -- --login "C:\path\to\ext"  # pause to sign in before capturing
  */
 import path from "node:path";
 import { existsSync } from "node:fs";
@@ -17,17 +18,20 @@ import { step, info, ok } from "./log";
 async function main(): Promise<void> {
   console.log("=== ZipSnap — capture engine ===");
 
-  const argPath = process.argv[2];
+  const args = process.argv.slice(2);
+  const interactive = args.includes("--login") || args.includes("--interactive");
+  const argPath = args.find((a) => !a.startsWith("--"));
   const defaultFixture = path.resolve(__dirname, "..", "fixtures", "sample-extension");
   const extensionPath = argPath ? path.resolve(argPath) : defaultFixture;
 
   step("Locating the extension");
   info(`Folder: ${extensionPath}`);
   info(argPath ? "(using the path you provided)" : "(no path given — using the bundled test extension)");
+  if (interactive) info("Sign-in pause enabled (--login): capture will wait for you before shooting.");
   if (!existsSync(extensionPath)) throw new Error(`That folder does not exist: ${extensionPath}`);
 
   const outputDir = path.resolve(__dirname, "..", "output");
-  const result = await runCapture(extensionPath, outputDir, (s) => step(s));
+  const result = await runCapture(extensionPath, outputDir, (s) => step(s), { interactive });
 
   step("Done");
   const s = result.surfaces;

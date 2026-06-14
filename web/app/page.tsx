@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import JSZip from "jszip";
 import Footer from "./components/Footer";
+import { sizeOf, deriveName } from "./lib/utils";
 
 const WORKER = process.env.NEXT_PUBLIC_WORKER_URL ?? "http://localhost:4000";
 
@@ -38,12 +39,6 @@ const STEP_LABEL: Record<Status, string> = {
   error: "Something went wrong.",
 };
 
-function sizeOf(name: string): string {
-  if (name.startsWith("screenshot")) return "1280 × 800";
-  if (name.startsWith("small-promo")) return "440 × 280";
-  if (name.startsWith("marquee")) return "1400 × 560";
-  return "";
-}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface Picked {
@@ -82,12 +77,6 @@ async function zipFiles(files: { path: string; file: File }[]): Promise<Blob> {
   const zip = new JSZip();
   for (const { path, file } of files) zip.file(path, file);
   return zip.generateAsync({ type: "blob" });
-}
-
-/** Picks a top-level name to label the zip (the dropped folder's name, if any). */
-function deriveName(files: { path: string; file: File }[]): string {
-  const top = files[0]?.path.split("/")[0];
-  return (top && files.every((f) => f.path.includes("/")) ? top : "extension") + ".zip";
 }
 
 export default function Home() {
