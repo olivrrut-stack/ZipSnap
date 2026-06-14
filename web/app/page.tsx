@@ -1,0 +1,428 @@
+"use client";
+
+import { useRef, useState } from "react";
+import JSZip from "jszip";
+import Footer from "./components/Footer";
+
+const WORKER = process.env.NEXT_PUBLIC_WORKER_URL ?? "http://localhost:4000";
+
+type Status = "queued" | "capturing" | "writing" | "rendering" | "packaging" | "done" | "error";
+
+interface Copy {
+  shortDescription: string;
+  longDescription: string;
+  suggestedCategory: string;
+  slideHeadlines: string[];
+}
+interface JobState {
+  id: string;
+  status: Status;
+  step: string;
+  error?: string;
+  extensionName?: string;
+  brandColor?: string;
+  images: string[];
+  copy?: Copy;
+}
+
+const PCT: Record<Status, number> = {
+  queued: 8, capturing: 32, writing: 60, rendering: 82, packaging: 93, done: 100, error: 100,
+};
+const STEP_LABEL: Record<Status, string> = {
+  queued: "Queued…",
+  capturing: "Loading your extension & capturing its screens…",
+  writing: "Writing your store listing with AI…",
+  rendering: "Rendering the store images…",
+  packaging: "Packaging your kit…",
+  done: "Done!",
+  error: "Something went wrong.",
+};
+
+function sizeOf(name: string): string {
+  if (name.startsWith("screenshot")) return "1280 × 800";
+  if (name.startsWith("small-promo")) return "440 × 280";
+  if (name.startsWith("marquee")) return "1400 × 560";
+  return "";
+}
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+interface Picked {
+  blob: Blob;
+  name: string;
+}
+
+/** Recursively reads a dropped directory/file entry into a flat list with paths. */
+function walkEntry(entry: any, prefix: string, out: { path: string; file: File }[]): Promise<void> {
+  return new Promise((resolve) => {
+    if (entry.isFile) {
+      entry.file((f: File) => {
+        out.push({ path: prefix + entry.name, file: f });
+        resolve();
+      }, () => resolve());
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const all: any[] = [];
+      const readBatch = () =>
+        reader.readEntries(async (ents: any[]) => {
+          if (ents.length === 0) {
+            for (const e of all) await walkEntry(e, prefix + entry.name + "/", out);
+            resolve();
+          } else {
+            all.push(...ents);
+            readBatch();
+          }
+        }, () => resolve());
+      readBatch();
+    } else resolve();
+  });
+}
+
+/** Zips a list of {path, file} into a single Blob. */
+async function zipFiles(files: { path: string; file: File }[]): Promise<Blob> {
+  const zip = new JSZip();
+  for (const { path, file } of files) zip.file(path, file);
+  return zip.generateAsync({ type: "blob" });
+}
+
+/** Picks a top-level name to label the zip (the dropped folder's name, if any). */
+function deriveName(files: { path: string; file: File }[]): string {
+  const top = files[0]?.path.split("/")[0];
+  return (top && files.every((f) => f.path.includes("/")) ? top : "extension") + ".zip";
+}
+
+export default function Home() {
+  const [picked, setPicked] = useState<Picked | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [job, setJob] = useState<JobState | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
+  const zipInputRef = useRef<HTMLInputElement>(null);
+  const dirInputRef = useRef<HTMLInputElement>(null);
+
+  /** Accepts a single .zip, or a folder / set of files (which we zip in-browser). */
+  async function accept(opts: { zip?: File | null; entries?: { path: string; file: File }[] }) {
+    if (opts.zip && /\.zip$/i.test(opts.zip.name)) {
+      setPicked({ blob: opts.zip, name: opts.zip.name });
+      return;
+    }
+    const files = opts.entries ?? [];
+    const real = files.filter((f) => !f.path.includes("__MACOSX") && !f.path.endsWith(".DS_Store"));
+    if (real.length === 0) return;
+    setPreparing(true);
+    try {
+      const blob = await zipFiles(real);
+      setPicked({ blob, name: deriveName(real) });
+    } finally {
+      setPreparing(false);
+    }
+  }
+
+  async function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const dt = e.dataTransfer;
+    // Single .zip dropped → use as-is.
+    if (dt.files.length === 1 && /\.zip$/i.test(dt.files[0].name)) {
+      await accept({ zip: dt.files[0] });
+      return;
+    }
+    // Folder or loose files → read everything, then zip.
+    const items = Array.from(dt.items).filter((i) => i.kind === "file");
+    const entries = items.map((i) => (i as any).webkitGetAsEntry?.()).filter(Boolean);
+    if (entries.length) {
+      const out: { path: string; file: File }[] = [];
+      for (const entry of entries) await walkEntry(entry, "", out);
+      await accept({ entries: out });
+    } else {
+      await accept({ entries: Array.from(dt.files).map((f) => ({ path: f.name, file: f })) });
+    }
+  }
+
+  function onDirPicked(list: FileList | null) {
+    if (!list) return;
+    const entries = Array.from(list).map((f) => ({
+      path: (f as any).webkitRelativePath || f.name,
+      file: f,
+    }));
+    void accept({ entries });
+  }
+
+  async function generate() {
+    if (!picked) return;
+    setJob({ id: "", status: "queued", step: STEP_LABEL.queued, images: [] });
+    try {
+      const form = new FormData();
+      form.append("extension", picked.blob, picked.name);
+      const res = await fetch(`${WORKER}/api/jobs`, { method: "POST", body: form });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Upload failed.");
+      const { jobId } = await res.json();
+      for (;;) {
+        await sleep(2000);
+        const s = await fetch(`${WORKER}/api/jobs/${jobId}`).then((r) => r.json());
+        setJob({
+          id: jobId, status: s.status, step: s.step ?? STEP_LABEL[s.status as Status] ?? "",
+          error: s.error, extensionName: s.extensionName, brandColor: s.brandColor,
+          images: s.images ?? [], copy: s.copy,
+        });
+        if (s.status === "done" || s.status === "error") break;
+      }
+    } catch (err) {
+      setJob({ id: "", status: "error", step: "", error: err instanceof Error ? err.message : "Upload failed.", images: [] });
+    }
+  }
+
+  function reset() {
+    setJob(null);
+    setPicked(null);
+  }
+
+  const working = job && job.status !== "done" && job.status !== "error";
+
+  return (
+    <main>
+      <div className="wrap">
+        <nav className="nav">
+          <div className="brand">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/zip-icon.png" alt="" className="brand-mark" />
+            ZipSnap
+          </div>
+          <div className={`nav-links ${navOpen ? "open" : ""}`}>
+            <a href="#how" onClick={() => setNavOpen(false)}>How it works</a>
+            <a href="#output" onClick={() => setNavOpen(false)}>What you get</a>
+            <a href="#upload" onClick={() => setNavOpen(false)}>Start</a>
+          </div>
+          <button
+            className="nav-toggle"
+            aria-label={navOpen ? "Close menu" : "Open menu"}
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((v) => !v)}
+          >
+            {navOpen ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+            )}
+          </button>
+        </nav>
+
+        <section className="hero" id="upload">
+          <span className="eyebrow">
+            <span className="dot" />
+            Zip in. Snap out. We do the rest.
+          </span>
+          <h1 className="hero-title">
+            Zip in your extension. <span className="accent">Snap out a store kit.</span>
+          </h1>
+          <p className="subhead">
+            Drag in your Chrome extension — a <span className="mono">.zip</span> or its folder.
+            ZipSnap unpacks it, captures its real screens, builds the promo tiles, and writes the
+            store listing — automatically, at the exact sizes the Chrome Web Store requires.
+          </p>
+
+          {!job && (
+            <>
+              <div
+                className={`dropzone ${dragging ? "drag" : ""}`}
+                onClick={() => zipInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={onDrop}
+              >
+                <div className="dz-icon">
+                  {preparing ? (
+                    <span className="spinner" />
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 16V4M12 4l-5 5M12 4l5 5" />
+                      <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                    </svg>
+                  )}
+                </div>
+                <div className="dz-title">
+                  {preparing ? "Preparing…" : picked ? picked.name : "Drag your extension here"}
+                </div>
+                <div className="dz-sub">
+                  {picked && !preparing ? (
+                    <>ready to generate · <span className="mono">{(picked.blob.size / 1024).toFixed(0)} KB</span></>
+                  ) : (
+                    <>
+                      drop a <span className="mono">.zip</span> or a folder — or click to browse, or{" "}
+                      <button
+                        type="button"
+                        className="link-btn"
+                        onClick={(e) => { e.stopPropagation(); dirInputRef.current?.click(); }}
+                      >
+                        pick a folder
+                      </button>
+                    </>
+                  )}
+                </div>
+                <input ref={zipInputRef} type="file" accept=".zip" hidden tabIndex={-1} aria-hidden="true" onChange={(e) => accept({ zip: e.target.files?.[0] ?? null })} />
+                <input
+                  ref={dirInputRef}
+                  type="file"
+                  multiple
+                  hidden
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onChange={(e) => onDirPicked(e.target.files)}
+                  {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+                />
+              </div>
+
+              <div className="cta-row">
+                <button className="btn btn-primary" disabled={!picked || preparing} onClick={generate}>
+                  Generate my kit →
+                </button>
+              </div>
+              <p className="hint">No screenshots to take. No design tools. Free during beta.</p>
+            </>
+          )}
+
+          {working && (
+            <div className="panel">
+              <div className="panel-head">
+                <div className="panel-title">
+                  <span className="spinner" />
+                  {job!.extensionName ?? picked?.name ?? "Your extension"}
+                </div>
+                <span className="mono" style={{ color: "var(--text-faint)", fontSize: 12.5 }}>
+                  {Math.round(PCT[job!.status])}%
+                </span>
+              </div>
+              <div className="progress">
+                <div className="progress-step">{job!.step || STEP_LABEL[job!.status]}</div>
+                <div className="bar">
+                  <div className="bar-fill" style={{ width: `${PCT[job!.status]}%` }} />
+                </div>
+                <p className="muted-note">
+                  We&apos;re running a real browser to photograph your extension&apos;s actual UI — usually about half a minute.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {job?.status === "error" && (
+            <div className="panel">
+              <div className="error-box">{job.error ?? "Something went wrong."}</div>
+              <div className="cta-row" style={{ marginTop: 16 }}>
+                <button className="btn btn-ghost" onClick={reset}>Try another extension</button>
+              </div>
+            </div>
+          )}
+
+          {job?.status === "done" && <Results job={job} onReset={reset} />}
+        </section>
+
+        {!job && (
+          <>
+            <section className="gallery" aria-label="Example output">
+              <div className="gallery-strip">
+                <div className="shot"><img src="/samples/screenshot-1.png" alt="Generated store screenshot" /></div>
+                <div className="shot"><img src="/samples/screenshot-3.png" alt="Generated store screenshot" /></div>
+                <div className="shot-tall">
+                  <div className="shot"><img src="/samples/small-promo-440x280.png" alt="Generated small promo tile" /></div>
+                  <div className="shot"><img src="/samples/marquee-1400x560.png" alt="Generated marquee promo tile" /></div>
+                </div>
+              </div>
+            </section>
+
+            <section className="section" id="how">
+              <div className="section-label">How it works</div>
+              <h2 className="section-title">Three steps. Zero screenshots.</h2>
+              <div className="steps">
+                <div className="step"><div className="step-num">1</div><h3>Drop your extension</h3><p>Drag in a .zip or your unpacked folder. ZipSnap reads its manifest to find every screen it has — popup, options, and on-page UI.</p></div>
+                <div className="step"><div className="step-num">2</div><h3>We capture it live</h3><p>It loads your extension in a real browser and photographs its actual screens — even site-specific ones, on the site they belong to.</p></div>
+                <div className="step"><div className="step-num">3</div><h3>Download the kit</h3><p>Five screenshots, both promo tiles, and an AI-written listing — framed in your extension&apos;s own brand color, ready to submit.</p></div>
+              </div>
+            </section>
+
+            <section className="section" id="output" style={{ paddingTop: 0 }}>
+              <div className="section-label">What you get</div>
+              <h2 className="section-title">Exactly the sizes the store demands.</h2>
+              <div className="specs">
+                <span className="spec"><b>5×</b> screenshots · 1280×800</span>
+                <span className="spec"><b>1×</b> small promo · 440×280</span>
+                <span className="spec"><b>1×</b> marquee · 1400×560</span>
+                <span className="spec"><b>Listing</b> · short + long + category</span>
+                <span className="spec"><b>5×</b> slide headlines</span>
+              </div>
+            </section>
+          </>
+        )}
+
+        <Footer />
+      </div>
+    </main>
+  );
+}
+
+function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
+  const copy = job.copy;
+  const copyText = (t: string) => navigator.clipboard?.writeText(t);
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <div className="panel-title">
+          {job.brandColor && <span className="swatch" style={{ background: job.brandColor }} />}
+          {job.extensionName ?? "Your kit"} — ready
+        </div>
+        <a className="btn btn-primary" href={`${WORKER}/api/jobs/${job.id}/kit`}>
+          Download kit (.zip)
+        </a>
+      </div>
+
+      <div className="result-grid">
+        {job.images.map((name) => (
+          <div className="result-shot" key={name}>
+            <img
+              src={`${WORKER}/api/jobs/${job.id}/image/${name}`}
+              alt={name}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                e.currentTarget.parentElement?.classList.add("img-error");
+              }}
+            />
+            <div className="img-error-note">Preview unavailable</div>
+            <div className="cap">{name} · {sizeOf(name)}</div>
+          </div>
+        ))}
+      </div>
+
+      {copy && (
+        <>
+          <div className="copy-block">
+            <div className="cb-head"><span className="cb-label">Suggested category</span></div>
+            <span className="chip">{copy.suggestedCategory}</span>
+          </div>
+          <div className="copy-block">
+            <div className="cb-head">
+              <span className="cb-label">Short description</span>
+              <button className="btn-mini" onClick={() => copyText(copy.shortDescription)}>Copy</button>
+            </div>
+            <div className="cb-text">{copy.shortDescription}</div>
+          </div>
+          <div className="copy-block">
+            <div className="cb-head">
+              <span className="cb-label">Long description</span>
+              <button className="btn-mini" onClick={() => copyText(copy.longDescription)}>Copy</button>
+            </div>
+            <div className="cb-text">{copy.longDescription}</div>
+          </div>
+          <div className="copy-block">
+            <div className="cb-head">
+              <span className="cb-label">Slide headlines</span>
+              <button className="btn-mini" onClick={() => copyText(copy.slideHeadlines.join("\n"))}>Copy all</button>
+            </div>
+            <div className="cb-text">{copy.slideHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}</div>
+          </div>
+        </>
+      )}
+
+      <div className="cta-row" style={{ marginTop: 16, justifyContent: "flex-start" }}>
+        <button className="btn btn-ghost" onClick={onReset}>Generate another</button>
+      </div>
+    </div>
+  );
+}

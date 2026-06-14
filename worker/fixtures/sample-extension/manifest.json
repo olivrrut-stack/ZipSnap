@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "ZipSnap Test Extension",
+  "version": "1.0.0",
+  "description": "A tiny sample extension used to test ZipSnap's auto-capture.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ZipSnap Test"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "128": "icon128.png"
+  }
+}

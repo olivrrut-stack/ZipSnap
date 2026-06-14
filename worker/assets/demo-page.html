@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Daily Reader</title>
+    <style>
+      :root {
+        --ink: #1f2430;
+        --muted: #6b7280;
+        --line: #e7e9ee;
+        --accent: #3b5bdb;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        font-family: Georgia, "Times New Roman", serif;
+        color: var(--ink);
+        background: #fbfbfd;
+        line-height: 1.65;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 32px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      }
+      .brand {
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        font-size: 18px;
+      }
+      .nav {
+        display: flex;
+        gap: 22px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 48px 24px 80px;
+      }
+      .kicker {
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+      h1 {
+        font-size: 40px;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin: 10px 0 16px;
+      }
+      .byline {
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        color: var(--muted);
+        font-size: 14px;
+        margin-bottom: 28px;
+      }
+      .hero {
+        height: 280px;
+        border-radius: 14px;
+        margin-bottom: 32px;
+        background: linear-gradient(120deg, #dfe6ff, #f2e9ff 55%, #ffe9f1);
+      }
+      p {
+        font-size: 18px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        font-size: 24px;
+        margin: 36px 0 12px;
+        letter-spacing: -0.01em;
+      }
+      .pull {
+        border-left: 3px solid var(--accent);
+        padding-left: 18px;
+        color: #374151;
+        font-style: italic;
+        margin: 28px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">The Daily Reader</div>
+      <nav class="nav">
+        <span>World</span>
+        <span>Science</span>
+        <span>Culture</span>
+        <span>Opinion</span>
+      </nav>
+    </header>
+    <main class="wrap">
+      <div class="kicker">Science</div>
+      <h1>How small tools quietly reshape the way we work</h1>
+      <div class="byline">By A. Writer · 6 min read</div>
+      <div class="hero"></div>
+      <p>
+        Every workspace accumulates a handful of small helpers — the kind of
+        tools that disappear into the background until the day they stop
+        working. This is a demo article used to give browser extensions a
+        realistic page to sit on.
+      </p>
+      <p>
+        The text here is intentionally generic. Its only job is to look like a
+        normal website so that an extension's on-page elements appear in a
+        believable setting for a screenshot.
+      </p>
+      <blockquote class="pull">
+        “The best tools ask for almost nothing and give back time.”
+      </blockquote>
+      <h2>A familiar pattern</h2>
+      <p>
+        Readers scroll, tools assist, and the page goes on. Nothing on this page
+        belongs to any real publication; it exists purely as a neutral stage.
+      </p>
+      <p>
+        Continue reading below for more placeholder prose that fills the column
+        and keeps the layout looking natural at a glance.
+      </p>
+    </main>
+  </body>
+</html>

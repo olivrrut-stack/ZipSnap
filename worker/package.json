@@ -1,0 +1,37 @@
+{
+  "name": "zipsnap-worker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ZipSnap capture worker — loads a Chrome extension and screenshots its own UI.",
+  "scripts": {
+    "spike": "tsx src/index.ts",
+    "capture": "tsx src/index.ts",
+    "copy": "tsx src/generateCopy.ts",
+    "render": "tsx src/renderKit.ts",
+    "server": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "setup:browser": "playwright install chromium"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "@fontsource/geist-mono": "^5.2.8",
+    "@resvg/resvg-js": "^2.6.2",
+    "adm-zip": "^0.5.17",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "playwright": "^1.49.0",
+    "satori": "^0.26.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

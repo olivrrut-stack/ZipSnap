@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      :root {
+        --brand: #6d5efc;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        width: 320px;
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        color: #1a1a2e;
+        background: #ffffff;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px;
+        background: linear-gradient(135deg, var(--brand), #9b8bff);
+        color: #fff;
+      }
+      .logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.2);
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+      }
+      .title {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .subtitle {
+        font-size: 12px;
+        opacity: 0.85;
+      }
+      .body {
+        padding: 16px;
+      }
+      .stat {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .stat:last-child {
+        border-bottom: none;
+      }
+      .stat .label {
+        font-size: 13px;
+        color: #555;
+      }
+      .stat .value {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--brand);
+      }
+      .cta {
+        margin-top: 14px;
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        background: var(--brand);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="logo">✦</div>
+      <div>
+        <div class="title">ZipSnap Test</div>
+        <div class="subtitle">Sample popup screen</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="stat">
+        <span class="label">Pages cleaned today</span>
+        <span class="value">42</span>
+      </div>
+      <div class="stat">
+        <span class="label">Time saved</span>
+        <span class="value">1h 12m</span>
+      </div>
+      <div class="stat">
+        <span class="label">Streak</span>
+        <span class="value">7 days</span>
+      </div>
+      <button class="cta">Run now</button>
+    </div>
+  </body>
+</html>
