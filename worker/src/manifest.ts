@@ -1,9 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import JSON5 from "json5";
 import type { DetectedSurfaces, ExtensionMeta } from "./types";
 
-/** Reads and parses an unpacked extension's manifest.json. */
+/**
+ * Reads and parses an unpacked extension's manifest.json. Chrome's own
+ * manifest loader tolerates `//` comments and trailing commas, so some
+ * real-world extensions ship manifests that aren't strict JSON — parse with
+ * JSON5, which accepts standard JSON too.
+ */
 export async function readManifest(extensionPath: string): Promise<any> {
   const manifestPath = path.join(extensionPath, "manifest.json");
   if (!existsSync(manifestPath)) {
@@ -11,7 +17,7 @@ export async function readManifest(extensionPath: string): Promise<any> {
       `No manifest.json found in ${extensionPath} — is that an unpacked extension?`,
     );
   }
-  return JSON.parse(await readFile(manifestPath, "utf8"));
+  return JSON5.parse(await readFile(manifestPath, "utf8"));
 }
 
 /** Pulls the descriptive fields we hand to the AI later. `id` is filled in once known. */
