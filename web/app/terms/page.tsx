@@ -5,6 +5,9 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Terms of Service — ZipSnap",
   description: "The terms that apply to using ZipSnap.",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 
 export default function TermsPage() {

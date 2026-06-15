@@ -5,6 +5,9 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Privacy Policy — ZipSnap",
   description: "How ZipSnap handles the files and data you upload.",
+  alternates: {
+    canonical: "/privacy",
+  },
 };
 
 export default function PrivacyPage() {
