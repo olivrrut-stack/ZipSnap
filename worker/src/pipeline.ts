@@ -4,7 +4,9 @@
  * The CLI scripts and the HTTP server both call these.
  */
 import path from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, cp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { readManifest, extractMeta, detectSurfaces } from "./manifest";
 import { launchExtension, resolveExtensionId, teardown } from "./extensionContext";
@@ -26,6 +28,31 @@ export interface RunCaptureOptions {
    * effect under ZIPSNAP_HEADLESS=1 (the server never enables it).
    */
   interactive?: boolean;
+}
+
+/**
+ * Extensions without a background service worker never fire the "serviceworker"
+ * event that resolveExtensionId waits on. When that's the case, copy the
+ * extension to a temp dir and inject a minimal stub so Chrome registers one.
+ * Returns the (possibly patched) path and a cleanup function to remove the
+ * temp copy when done.
+ */
+async function withServiceWorker(
+  extensionPath: string,
+  manifest: any,
+): Promise<{ resolvedPath: string; cleanup: () => Promise<void> }> {
+  if (manifest.background?.service_worker) {
+    return { resolvedPath: extensionPath, cleanup: async () => {} };
+  }
+  const tmpDir = await mkdtemp(path.join(tmpdir(), "zipsnap-ext-"));
+  await cp(extensionPath, tmpDir, { recursive: true });
+  await writeFile(path.join(tmpDir, "_zipsnap_bg.js"), "// ZipSnap stub\n", "utf8");
+  const patched = { ...manifest, background: { service_worker: "_zipsnap_bg.js" } };
+  await writeFile(path.join(tmpDir, "manifest.json"), JSON.stringify(patched, null, 2), "utf8");
+  return {
+    resolvedPath: tmpDir,
+    cleanup: () => rm(tmpDir, { recursive: true, force: true }).catch(() => {}),
+  };
 }
 
 /** Blocks until the user presses Enter in the terminal. */
@@ -52,7 +79,8 @@ export async function runCapture(
   await mkdir(outputDir, { recursive: true });
 
   onStep("Launching Chrome with the extension");
-  const loaded = await launchExtension(extensionPath);
+  const { resolvedPath, cleanup } = await withServiceWorker(extensionPath, manifest);
+  const loaded = await launchExtension(resolvedPath);
   try {
     onStep("Finding the extension ID");
     const extensionId = await resolveExtensionId(loaded.context);
@@ -86,6 +114,7 @@ export async function runCapture(
     return result;
   } finally {
     await teardown(loaded);
+    await cleanup();
   }
 }
 
