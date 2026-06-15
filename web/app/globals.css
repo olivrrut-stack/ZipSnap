@@ -370,6 +370,9 @@ h1.hero-title .accent {
   object-fit: cover;
   object-position: center;
 }
+.tile-popup .frame-body img {
+  object-fit: contain;
+}
 .frame-dots {
   position: absolute;
   bottom: 10px;
