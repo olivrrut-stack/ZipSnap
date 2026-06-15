@@ -17,6 +17,7 @@ import { existsSync, readdirSync } from "node:fs";
 import express from "express";
 import cors from "cors";
 import multer from "multer";
+import rateLimit from "express-rate-limit";
 import AdmZip from "adm-zip";
 import { runCapture, runRender } from "./pipeline";
 import { generateStoreCopy, type StoreCopy } from "./copy";
@@ -128,12 +129,22 @@ const app = express();
 app.use(cors());
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
+// Each job launches a real Chrome instance and calls the Anthropic API, so
+// cap how often a single client can start new jobs.
+const createJobLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many jobs from this address. Please try again later." },
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY) });
 });
 
 // Upload a .zip -> start a job.
-app.post("/api/jobs", upload.single("extension"), async (req, res) => {
+app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, res) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: "No file uploaded. Send a .zip in the 'extension' field." });
