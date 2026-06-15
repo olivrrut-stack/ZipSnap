@@ -26,7 +26,7 @@ export default function PrivacyPage() {
           </p>
 
           <h2>What we collect</h2>
-          <p>ZipSnap does not require an account, and we do not use cookies, analytics, or trackers. The only data we handle is:</p>
+          <p>ZipSnap does not require an account and does not use cookies. The data we handle is:</p>
           <ul>
             <li>
               <strong>The extension package you upload</strong> (a <span className="mono">.zip</span> file
@@ -39,6 +39,10 @@ export default function PrivacyPage() {
             <li>
               <strong>Standard server logs</strong> (IP address, timestamps, request data) that any
               web server collects automatically, used only for security and debugging.
+            </li>
+            <li>
+              <strong>Anonymous page-view and performance metrics</strong> via Vercel Analytics —
+              cookieless and not tied to your identity, used only to understand overall site usage.
             </li>
           </ul>
 
