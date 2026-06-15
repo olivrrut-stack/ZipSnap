@@ -12,3 +12,4 @@ web/.next/
 
 # Local tool config
 .claude/
+.gstack/
