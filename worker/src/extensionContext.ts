@@ -24,11 +24,13 @@ export interface LoadedExtension {
  */
 export async function launchExtension(extensionPath: string): Promise<LoadedExtension> {
   const newHeadless = process.env.ZIPSNAP_HEADLESS === "1";
+  const inDocker = process.env.ZIPSNAP_DOCKER === "1";
   const userDataDir = await mkdtemp(path.join(tmpdir(), "zipsnap-"));
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: false, // never the old headless shell — it can't load extensions
     args: [
       ...(newHeadless ? ["--headless=new"] : []),
+      ...(inDocker ? ["--no-sandbox", "--disable-dev-shm-usage"] : []),
       `--disable-extensions-except=${extensionPath}`,
       `--load-extension=${extensionPath}`,
       "--no-first-run",
