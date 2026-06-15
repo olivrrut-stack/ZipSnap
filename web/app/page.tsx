@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import JSZip from "jszip";
 import Footer from "./components/Footer";
+import Gallery from "./components/Gallery";
 import { sizeOf, deriveName } from "./lib/utils";
 
 const WORKER = process.env.NEXT_PUBLIC_WORKER_URL ?? "http://localhost:4000";
@@ -306,16 +307,7 @@ export default function Home() {
 
         {!job && (
           <>
-            <section className="gallery" aria-label="Example output">
-              <div className="section-label">Example output</div>
-              <h2 className="section-title">Real output, not mockups.</h2>
-              <div className="gallery-strip">
-                <div className="shot"><img src="/samples/screenshot-1.png" alt="Generated store screenshot" /></div>
-                <div className="shot"><img src="/samples/screenshot-3.png" alt="Generated store screenshot" /></div>
-                <div className="shot shot-small"><img src="/samples/small-promo-440x280.png" alt="Generated small promo tile" /></div>
-                <div className="shot shot-wide"><img src="/samples/marquee-1400x560.png" alt="Generated marquee promo tile" /></div>
-              </div>
-            </section>
+            <Gallery />
 
             <section className="section" id="how">
               <div className="section-label">How it works</div>
