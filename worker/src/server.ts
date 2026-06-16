@@ -21,6 +21,7 @@ import rateLimit from "express-rate-limit";
 import AdmZip from "adm-zip";
 import { runCapture, runRender } from "./pipeline";
 import { generateStoreCopy, type StoreCopy } from "./copy";
+import { generateIcons } from "./iconGeneration";
 import type { CaptureResult } from "./types";
 
 dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env") });
@@ -54,6 +55,8 @@ interface Job {
   images: string[];
   capture?: CaptureResult;
   copy?: StoreCopy;
+  iconsDir?: string;
+  iconFiles?: string[];
 }
 
 const jobs = new Map<string, Job>();
@@ -130,10 +133,21 @@ async function processJob(job: Job): Promise<void> {
     job.kitDir = kitDir;
     job.images = files.map((f) => path.basename(f));
 
+    job.step = "Generating icons";
+    const { iconsDir, files: iconFiles } = await generateIcons(
+      capture.extension.name,
+      capture.extension.description,
+      capture.brandColor,
+      job.outputDir,
+    );
+    job.iconsDir = iconsDir;
+    job.iconFiles = iconFiles;
+
     job.status = "packaging";
     job.step = "Packaging the kit";
     const zip = new AdmZip();
     zip.addLocalFolder(kitDir);
+    if (iconsDir) zip.addLocalFolder(iconsDir, "icons");
     zip.addFile("descriptions.txt", Buffer.from(descriptionsText(capture.extension.name, copy), "utf8"));
     const zipPath = path.join(job.dir, "zipsnap-kit.zip");
     zip.writeZip(zipPath);
@@ -219,6 +233,9 @@ app.get("/api/jobs/:id", (req, res) => {
     brandColor: job.capture?.brandColor,
     images: job.status === "done" ? job.images : [],
     copy: job.status === "done" ? job.copy : undefined,
+    iconKit: job.status === "done" && job.iconFiles?.length
+      ? { files: job.iconFiles }
+      : undefined,
   });
 });
 
@@ -230,6 +247,16 @@ app.get("/api/jobs/:id/image/:name", (req, res) => {
     return;
   }
   res.sendFile(path.join(job.kitDir, req.params.name), { dotfiles: "allow" });
+});
+
+// Preview a generated icon at a specific size.
+app.get("/api/jobs/:id/icon/:name", (req, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job?.iconsDir || !job.iconFiles?.includes(req.params.name)) {
+    res.status(404).end();
+    return;
+  }
+  res.sendFile(path.join(job.iconsDir, req.params.name), { dotfiles: "allow" });
 });
 
 // Download the finished kit zip.

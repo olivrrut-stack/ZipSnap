@@ -7,7 +7,7 @@ const FIXTURE = path.resolve(__dirname, "..", "fixtures", "sample-extension");
 describe("readManifest", () => {
   it("reads and parses the sample extension's manifest.json", async () => {
     const manifest = await readManifest(FIXTURE);
-    expect(manifest.name).toBe("ZipSnap Test Extension");
+    expect(manifest.name).toBe("FocusDash");
     expect(manifest.manifest_version).toBe(3);
   });
 

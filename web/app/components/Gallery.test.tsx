@@ -1,43 +1,41 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import Gallery from "./Gallery";
 
 describe("Gallery", () => {
   it("renders a captioned tile for each output type", () => {
     render(<Gallery />);
-    expect(screen.getByText("Toolbar popup")).toBeInTheDocument();
-    expect(screen.getByText("On-page UI")).toBeInTheDocument();
-    expect(screen.getByText("Small promo · 440×280")).toBeInTheDocument();
-    expect(screen.getByText("Marquee · 1400×560")).toBeInTheDocument();
+    expect(screen.getAllByText("Screenshot · 1280×800").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("On-page · 1280×800").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Small promo · 440×280").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Marquee · 1400×560").length).toBeGreaterThan(0);
   });
 
-  it("shows the fake URL pill only on the on-page tile", () => {
+  it("renders the correct images", () => {
     render(<Gallery />);
-    expect(screen.getByText("thedailyreader.com/article")).toBeInTheDocument();
+    const imgs = screen.getAllByRole("img");
+    const srcs = imgs.map((img) => img.getAttribute("src"));
+    expect(srcs).toContain("/samples/screenshot-1.png");
+    expect(srcs).toContain("/samples/screenshot-3.png");
+    expect(srcs).toContain("/samples/small-promo-440x280.png");
+    expect(srcs).toContain("/samples/marquee-1400x560.png");
   });
 
-  it("opens a lightbox with the clicked image and closes on backdrop click", () => {
+  it("renders the ticker track with doubled tiles for seamless loop", () => {
     const { container } = render(<Gallery />);
-    expect(container.querySelector(".lightbox")).not.toBeInTheDocument();
-
-    const popup = screen.getByAltText("Generated popup screenshot");
-    fireEvent.click(popup.closest(".frame-body")!);
-
-    const lightbox = container.querySelector(".lightbox");
-    expect(lightbox).toBeInTheDocument();
-    expect(lightbox?.querySelector("img")).toHaveAttribute("src", "/samples/popup.png");
-
-    fireEvent.click(lightbox!);
-    expect(container.querySelector(".lightbox")).not.toBeInTheDocument();
+    const items = container.querySelectorAll(".ticker-item");
+    expect(items.length).toBe(8); // 4 tiles × 2 for infinite scroll
   });
 
-  it("closes the lightbox on Escape", () => {
+  it("marks the duplicate set aria-hidden", () => {
     const { container } = render(<Gallery />);
-    const popup = screen.getByAltText("Generated popup screenshot");
-    fireEvent.click(popup.closest(".frame-body")!);
-    expect(container.querySelector(".lightbox")).toBeInTheDocument();
+    const hidden = container.querySelectorAll('[aria-hidden="true"]');
+    expect(hidden.length).toBe(4);
+  });
 
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(container.querySelector(".lightbox")).not.toBeInTheDocument();
+  it("applies silver class to promo and marquee tiles", () => {
+    const { container } = render(<Gallery />);
+    const silver = container.querySelectorAll(".ticker-card.silver");
+    expect(silver.length).toBe(4); // 2 silver tiles × 2 duplicates
   });
 });
