@@ -402,6 +402,21 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
 
       {copy && (
         <>
+          {copy.title && (
+            <div className="copy-block">
+              <div className="cb-head">
+                <span className="cb-label">Store title <span className="cb-meta">(45 chars max)</span></span>
+                <button className="btn-mini" onClick={() => doCopy(copy.title!, "title")}>
+                  {copiedKey === "title" ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <div className="cb-text">{copy.title}</div>
+              <div className="title-charcount" style={{ color: copy.title.length > 45 ? "var(--red)" : "var(--text-faint)" }}>
+                {copy.title.length}/45
+              </div>
+            </div>
+          )}
+
           <div className="copy-block">
             <div className="cb-head"><span className="cb-label">Suggested category</span></div>
             <span className="chip">{copy.suggestedCategory}</span>
@@ -433,21 +448,6 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
             </div>
             <div className="cb-text">{copy.slideHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}</div>
           </div>
-
-          {copy.title && (
-            <div className="copy-block">
-              <div className="cb-head">
-                <span className="cb-label">Store title <span className="cb-meta">(45 chars max)</span></span>
-                <button className="btn-mini" onClick={() => doCopy(copy.title!, "title")}>
-                  {copiedKey === "title" ? "Copied!" : "Copy"}
-                </button>
-              </div>
-              <div className="cb-text">{copy.title}</div>
-              <div className="title-charcount" style={{ color: copy.title.length > 45 ? "var(--red)" : "var(--text-faint)" }}>
-                {copy.title.length}/45
-              </div>
-            </div>
-          )}
 
           {copy.keywords?.length ? (
             <div className="copy-block">

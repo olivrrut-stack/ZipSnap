@@ -134,14 +134,20 @@ async function processJob(job: Job): Promise<void> {
     job.images = files.map((f) => path.basename(f));
 
     job.step = "Generating icons";
-    const { iconsDir, files: iconFiles } = await generateIcons(
-      capture.extension.name,
-      capture.extension.description,
-      capture.brandColor,
-      job.outputDir,
-    );
-    job.iconsDir = iconsDir;
-    job.iconFiles = iconFiles;
+    let iconsDir: string | undefined;
+    try {
+      const iconResult = await generateIcons(
+        capture.extension.name,
+        capture.extension.description,
+        capture.brandColor,
+        job.outputDir,
+      );
+      job.iconsDir = iconResult.iconsDir;
+      job.iconFiles = iconResult.files;
+      iconsDir = iconResult.iconsDir;
+    } catch {
+      // Icon generation is best-effort — a failure here doesn't fail the job.
+    }
 
     job.status = "packaging";
     job.step = "Packaging the kit";
