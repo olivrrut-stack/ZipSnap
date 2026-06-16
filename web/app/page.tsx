@@ -340,7 +340,7 @@ export default function Home() {
 
             <section className="section" id="output" style={{ paddingTop: 0 }}>
               <div className="section-label">What you get</div>
-              <h2 className="section-title">Exactly the sizes the store demands.</h2>
+              <h2 className="section-title">Exactly What The Store Demands.</h2>
               <div className="specs">
                 <span className="spec"><b>5×</b> screenshots · 1280×800</span>
                 <span className="spec"><b>1×</b> small promo · 440×280</span>
