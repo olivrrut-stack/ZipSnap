@@ -1,5 +1,16 @@
 /** Shared shapes for the ZipSnap capture engine. */
 
+export interface ManifestIssue {
+  type: "error" | "warning";
+  code: string;
+  message: string;
+  fix: string;
+}
+
+export interface ManifestHealth {
+  issues: ManifestIssue[];
+}
+
 /** What we learn from reading the extension's manifest. */
 export interface ExtensionMeta {
   id: string;
@@ -41,5 +52,6 @@ export interface CaptureResult {
     options: CapturedSurface;
     contentOverlay: CapturedSurface;
   };
+  manifestHealth: ManifestHealth;
   capturedAt: string; // ISO timestamp
 }

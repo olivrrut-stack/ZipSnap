@@ -873,6 +873,63 @@ h1.hero-title .accent {
   color: var(--green);
   margin-top: 6px;
 }
+.perm-flag-justification {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(66,133,244,0.07);
+  border: 1px solid rgba(66,133,244,0.18);
+}
+.perm-flag-justification-label {
+  display: block;
+  font-size: 10.5px;
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 4px;
+}
+.perm-flag-justification-text {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+/* manifest health */
+.health-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.health-item {
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: 1px solid;
+}
+.health-item--error {
+  border-color: rgba(234,67,53,0.28);
+  background: rgba(234,67,53,0.07);
+}
+.health-item--warning {
+  border-color: rgba(251,188,5,0.28);
+  background: rgba(251,188,5,0.06);
+}
+.health-header {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+.health-item--error .health-header { color: #ea4335; }
+.health-item--warning .health-header { color: var(--yellow); }
+.health-fix {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
 
 /* icon previews */
 .icon-preview-row {

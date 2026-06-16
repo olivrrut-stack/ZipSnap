@@ -8,7 +8,7 @@ import { mkdir, writeFile, cp, rm } from "node:fs/promises";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createInterface } from "node:readline/promises";
-import { readManifest, extractMeta, detectSurfaces } from "./manifest";
+import { readManifest, extractMeta, detectSurfaces, checkManifestHealth } from "./manifest";
 import { launchExtension, resolveExtensionId, teardown } from "./extensionContext";
 import { extractBrandColor } from "./brandColor";
 import { capturePopup, captureOptions, captureContentOverlay } from "./capture";
@@ -79,6 +79,7 @@ export async function runCapture(
   const manifest = await readManifest(extensionPath);
   const meta = extractMeta(manifest);
   const surfaces = detectSurfaces(manifest, extensionPath);
+  const manifestHealth = checkManifestHealth(manifest);
   await mkdir(outputDir, { recursive: true });
 
   onStep("Launching Chrome with the extension");
@@ -111,6 +112,7 @@ export async function runCapture(
       extension: { id: extensionId, ...meta },
       brandColor,
       surfaces: { popup, options, contentOverlay },
+      manifestHealth,
       capturedAt: new Date().toISOString(),
     };
     await writeFile(path.join(outputDir, "capture.json"), JSON.stringify(result, null, 2), "utf8");

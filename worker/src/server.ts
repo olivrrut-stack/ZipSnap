@@ -79,8 +79,12 @@ function descriptionsText(name: string, copy: StoreCopy): string {
   const flaggedSection = copy.permissionsAnalysis?.flagged?.length
     ? [
         `FLAGGED PERMISSIONS:`,
-        ...copy.permissionsAnalysis.flagged.map(
-          (f) => `  ${f.permission}: ${f.reason}\n  → ${f.suggestion}`
+        ...copy.permissionsAnalysis.flagged.map((f) =>
+          [
+            `  ${f.permission}: ${f.reason}`,
+            `  → ${f.suggestion}`,
+            f.listingJustification ? `  Paste into listing: "${f.listingJustification}"` : "",
+          ].filter(Boolean).join("\n")
         ),
         ``,
       ]
@@ -239,6 +243,7 @@ app.get("/api/jobs/:id", (req, res) => {
     brandColor: job.capture?.brandColor,
     images: job.status === "done" ? job.images : [],
     copy: job.status === "done" ? job.copy : undefined,
+    manifestHealth: job.status === "done" ? job.capture?.manifestHealth : undefined,
     iconKit: job.status === "done" && job.iconFiles?.length
       ? { files: job.iconFiles }
       : undefined,

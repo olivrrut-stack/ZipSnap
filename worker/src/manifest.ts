@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import JSON5 from "json5";
-import type { DetectedSurfaces, ExtensionMeta } from "./types";
+import type { DetectedSurfaces, ExtensionMeta, ManifestHealth } from "./types";
 
 /**
  * Reads and parses an unpacked extension's manifest.json. Chrome's own
@@ -33,6 +33,60 @@ export function extractMeta(manifest: any): Omit<ExtensionMeta, "id"> {
     manifestVersion: manifest?.manifest_version ?? 0,
     permissions,
   };
+}
+
+/** Deterministic pre-submission health check against the Chrome Web Store's most common rejection causes. */
+export function checkManifestHealth(manifest: any): ManifestHealth {
+  const issues: ManifestHealth["issues"] = [];
+  const mv: number = manifest?.manifest_version;
+
+  if (mv !== 3) {
+    issues.push({
+      type: "error",
+      code: "MV2_DEPRECATED",
+      message: `manifest_version is ${mv ?? "(missing)"} — Manifest V2 extensions are rejected by the Chrome Web Store.`,
+      fix: "Set manifest_version to 3 and migrate background scripts to a background.service_worker.",
+    });
+  }
+
+  const csp = manifest?.content_security_policy;
+  const cspPages: string = typeof csp === "string" ? csp : (csp?.extension_pages ?? "");
+  if (cspPages.includes("unsafe-eval")) {
+    issues.push({
+      type: "error",
+      code: "CSP_UNSAFE_EVAL",
+      message: "'unsafe-eval' in content_security_policy is explicitly blocked by Chrome Web Store policy.",
+      fix: "Remove 'unsafe-eval'. Refactor any code that uses eval(), new Function(), or string-argument setTimeout/setInterval.",
+    });
+  }
+  if (cspPages.includes("unsafe-inline")) {
+    issues.push({
+      type: "warning",
+      code: "CSP_UNSAFE_INLINE",
+      message: "'unsafe-inline' in content_security_policy weakens security and risks rejection.",
+      fix: "Remove 'unsafe-inline'. Move inline scripts to external .js files.",
+    });
+  }
+
+  if (mv === 3 && Array.isArray(manifest?.background?.scripts)) {
+    issues.push({
+      type: "error",
+      code: "BACKGROUND_SCRIPTS",
+      message: "background.scripts is a Manifest V2 pattern not valid in MV3.",
+      fix: "Replace background.scripts with background.service_worker pointing to a single bundled JS file.",
+    });
+  }
+
+  if (!manifest?.description || String(manifest.description).trim() === "") {
+    issues.push({
+      type: "warning",
+      code: "MISSING_DESCRIPTION",
+      message: "No 'description' field found in manifest.json.",
+      fix: "Add a 'description' field (max 132 characters) explaining what your extension does.",
+    });
+  }
+
+  return { issues };
 }
 
 /** Reports which UI surfaces exist, so we only try to capture real ones. */

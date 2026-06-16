@@ -10,6 +10,13 @@ const WORKER = process.env.NEXT_PUBLIC_WORKER_URL ?? "http://localhost:4000";
 
 type Status = "queued" | "capturing" | "writing" | "rendering" | "packaging" | "done" | "error";
 
+interface ManifestIssue {
+  type: "error" | "warning";
+  code: string;
+  message: string;
+  fix: string;
+}
+
 interface Copy {
   shortDescription: string;
   longDescription: string;
@@ -19,7 +26,7 @@ interface Copy {
   keywords?: string[];
   permissionsAnalysis?: {
     safe: string[];
-    flagged: Array<{ permission: string; reason: string; suggestion: string }>;
+    flagged: Array<{ permission: string; reason: string; suggestion: string; listingJustification?: string }>;
   };
   privacyPolicy?: string;
 }
@@ -32,6 +39,7 @@ interface JobState {
   brandColor?: string;
   images: string[];
   copy?: Copy;
+  manifestHealth?: { issues: ManifestIssue[] };
   iconKit?: { files: string[] };
 }
 
@@ -160,7 +168,7 @@ export default function Home() {
         setJob({
           id: jobId, status: s.status, step: s.step ?? STEP_LABEL[s.status as Status] ?? "",
           error: s.error, extensionName: s.extensionName, brandColor: s.brandColor,
-          images: s.images ?? [], copy: s.copy, iconKit: s.iconKit,
+          images: s.images ?? [], copy: s.copy, manifestHealth: s.manifestHealth, iconKit: s.iconKit,
         });
         if (s.status === "done" || s.status === "error") break;
       }
@@ -364,6 +372,7 @@ export default function Home() {
 
 function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
   const copy = job.copy;
+  const health = job.manifestHealth;
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   function doCopy(text: string, key: string) {
@@ -471,6 +480,22 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
             </div>
           ) : null}
 
+          {health?.issues && health.issues.length > 0 && (
+            <div className="copy-block">
+              <div className="cb-head">
+                <span className="cb-label">Manifest health</span>
+              </div>
+              <div className="health-list">
+                {health.issues.map((issue) => (
+                  <div key={issue.code} className={`health-item health-item--${issue.type}`}>
+                    <div className="health-header">{issue.type === "error" ? "✕" : "⚠"} {issue.message}</div>
+                    <div className="health-fix">Fix: {issue.fix}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {copy.permissionsAnalysis && (
             <div className="copy-block">
               <div className="cb-head">
@@ -490,6 +515,15 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
                       <div className="perm-flag-header">⚠ {f.permission}</div>
                       <div className="perm-flag-reason">{f.reason}</div>
                       <div className="perm-flag-fix">→ {f.suggestion}</div>
+                      {f.listingJustification && (
+                        <div className="perm-flag-justification">
+                          <span className="perm-flag-justification-label">Paste into listing:</span>
+                          <span className="perm-flag-justification-text">&ldquo;{f.listingJustification}&rdquo;</span>
+                          <button className="btn-mini" style={{ marginTop: 6 }} onClick={() => doCopy(f.listingJustification!, `just-${f.permission}`)}>
+                            {copiedKey === `just-${f.permission}` ? "Copied!" : "Copy"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

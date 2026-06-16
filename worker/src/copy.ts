@@ -63,6 +63,7 @@ export const StoreCopySchema = z.object({
       permission: z.string().describe("The exact permission string from the manifest."),
       reason: z.string().describe("Why this permission may be unnecessary, overly broad, or likely to cause rejection. One clear sentence."),
       suggestion: z.string().describe("Concrete fix: what to use instead, or how to limit the scope. One clear sentence."),
+      listingJustification: z.string().describe("A ready-to-paste sentence for the Chrome Web Store store description that explains WHY this permission is required. Must be specific and honest. Example: 'This extension requires access to browsing history to build your local productivity timeline — no data ever leaves your device.'"),
     })).describe(
       "Permissions that appear unnecessary for the described features, are overly broad, or commonly cause Chrome Web Store rejection."
     ),
@@ -74,9 +75,32 @@ export const StoreCopySchema = z.object({
 
 export type StoreCopy = z.infer<typeof StoreCopySchema>;
 
+/** Maps well-known permissions to plain-English descriptions of what data they grant access to. */
+const PERMISSION_DATA_MAP: Record<string, string> = {
+  history: "full browsing history (URLs visited, timestamps)",
+  tabs: "tab titles, URLs, and navigation state for all open tabs",
+  webNavigation: "page navigation events and URLs across all tabs",
+  webRequest: "network requests and response headers (can read all traffic)",
+  cookies: "all browser cookies for any domain",
+  bookmarks: "all browser bookmarks (read and write)",
+  downloads: "download history and file paths",
+  geolocation: "geographic location",
+  notifications: "system notifications",
+  management: "list and manage other installed extensions and apps",
+  nativeMessaging: "communication with native desktop applications",
+  debugger: "Chrome DevTools Protocol (full page inspection access)",
+  identity: "user OAuth tokens and identity",
+  contentSettings: "per-site content settings",
+  topSites: "the user's most frequently visited sites",
+  browsingData: "browsing history, cache, cookies, and downloads (deletion access)",
+  sessions: "recently closed tabs and windows across devices",
+  clipboardRead: "clipboard contents (read)",
+  clipboardWrite: "clipboard (write)",
+};
+
 /** Turns the captured facts into a short brief the model can write from. */
 function buildBrief(capture: CaptureResult): string {
-  const { extension, surfaces } = capture;
+  const { extension, surfaces, manifestHealth } = capture;
   const features: string[] = [];
   if (surfaces.popup.exists) features.push("Has a toolbar popup window.");
   if (surfaces.options.exists) features.push("Has an options/settings page.");
@@ -93,14 +117,38 @@ function buildBrief(capture: CaptureResult): string {
     features.push(`Adds on-page features while browsing ${where}.`);
   }
 
-  const lines = [
+  const permDataLines = extension.permissions
+    .map((p) => {
+      const data = PERMISSION_DATA_MAP[p];
+      return data ? `  - ${p}: grants access to ${data}` : null;
+    })
+    .filter((l): l is string => l !== null);
+
+  const healthErrors = (manifestHealth?.issues ?? []).filter((i) => i.type === "error");
+  const healthWarnings = (manifestHealth?.issues ?? []).filter((i) => i.type === "warning");
+
+  const lines: string[] = [
     `Name: ${extension.name}`,
     `Version: ${extension.version}`,
+    `Manifest version: ${extension.manifestVersion}`,
     `Developer's own description: ${extension.description || "(none provided)"}`,
     `Permissions requested: ${extension.permissions.length ? extension.permissions.join(", ") : "(none)"}`,
-    `(For permissions analysis: consider which permissions are clearly justified by the features above, and which seem unnecessary or overly broad)`,
-    `Detected UI surfaces:\n  - ${features.length ? features.join("\n  - ") : "none detected"}`,
   ];
+
+  if (permDataLines.length) {
+    lines.push(`\nData accessed per permission:\n${permDataLines.join("\n")}`);
+  }
+
+  lines.push(`(For permissions analysis: flag anything not clearly justified by the features below, and provide a ready-to-paste listingJustification for each flagged permission)`);
+  lines.push(`Detected UI surfaces:\n  - ${features.length ? features.join("\n  - ") : "none detected"}`);
+
+  if (healthErrors.length) {
+    lines.push(`\nMANIFEST ERRORS (rejection blockers):\n${healthErrors.map((i) => `  - [${i.code}] ${i.message}`).join("\n")}`);
+  }
+  if (healthWarnings.length) {
+    lines.push(`\nMANIFEST WARNINGS:\n${healthWarnings.map((i) => `  - [${i.code}] ${i.message}`).join("\n")}`);
+  }
+
   return lines.join("\n");
 }
 
@@ -116,7 +164,8 @@ Rules:
 - Keywords must each be 2-4 words, focusing on search intent.
 - For permissions analysis: flag anything that isn't clearly needed for the described features.
   Common rejection causes: 'tabs' when 'activeTab' would suffice, broad host permissions like '<all_urls>' when specific sites would work, 'history', 'management', 'nativeMessaging', 'debugger'.
-- The privacy policy must be factual based on the permissions granted, not aspirational.`;
+- For each flagged permission, listingJustification must be a complete, specific, paste-ready sentence for the Chrome Web Store description. It must name what the permission actually accesses (use the data access info from the brief) and explain exactly why the feature needs it. If no data leaves the device, say so explicitly.
+- The privacy policy must be SPECIFIC to the actual permissions in the brief — not generic. If the extension has 'history' permission, explicitly state what history data is accessed, how it is used, and that it is not shared. Cover every sensitive permission listed. A generic policy that does not address the actual permissions will cause reviewer rejection. Use placeholder contact email: privacy@[extensionname].example.`;
 
 /**
  * Calls Claude to generate store copy from the captured extension facts.
