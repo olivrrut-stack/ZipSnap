@@ -72,9 +72,9 @@ export default function Gallery() {
       <div className="gallery-bento">
         <div className="tile tile-popup">
           <Frame
-            images={["/samples/popup.png"]}
-            alt="Generated popup screenshot"
-            caption="Toolbar popup"
+            images={["/samples/screenshot-1.png"]}
+            alt="Generated 1280×800 screenshot"
+            caption="Screenshot · 1280×800"
             index="01"
             variant="simple"
             onOpen={setLightbox}
@@ -82,12 +82,11 @@ export default function Gallery() {
         </div>
         <div className="tile tile-onpage">
           <Frame
-            images={["/samples/on-page.png"]}
-            alt="Generated on-page screenshot"
-            caption="On-page UI"
+            images={["/samples/screenshot-3.png"]}
+            alt="Generated on-page 1280×800 screenshot"
+            caption="On-page · 1280×800"
             index="02"
-            variant="browser"
-            url="thedailyreader.com/article"
+            variant="simple"
             onOpen={setLightbox}
           />
         </div>

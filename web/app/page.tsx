@@ -261,6 +261,15 @@ export default function Home() {
                 />
               </div>
 
+              {!picked && !preparing && (
+                <p className="hint" style={{ marginTop: 6 }}>
+                  No extension handy?{" "}
+                  <a href="/sample-extension.zip" download className="link-btn">
+                    Download our sample →
+                  </a>
+                </p>
+              )}
+
               <div className="cta-row">
                 <button className="btn btn-primary" disabled={!picked || preparing} onClick={generate}>
                   Generate my kit →
@@ -341,7 +350,14 @@ export default function Home() {
 
 function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
   const copy = job.copy;
-  const copyText = (t: string) => navigator.clipboard?.writeText(t);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  function doCopy(text: string, key: string) {
+    navigator.clipboard?.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1500);
+  }
+
   return (
     <div className="panel">
       <div className="panel-head">
@@ -349,7 +365,7 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
           {job.brandColor && <span className="swatch" style={{ background: job.brandColor }} />}
           {job.extensionName ?? "Your kit"} — ready
         </div>
-        <a className="btn btn-primary" href={`${WORKER}/api/jobs/${job.id}/kit`}>
+        <a className="btn btn-primary" href={`${WORKER}/api/jobs/${job.id}/kit`} target="_blank" rel="noreferrer">
           Download kit (.zip)
         </a>
       </div>
@@ -357,6 +373,11 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
       <div className="result-grid">
         {job.images.map((name) => (
           <div className="result-shot" key={name}>
+            <div className="result-frame-bar">
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+            </div>
             <img
               src={`${WORKER}/api/jobs/${job.id}/image/${name}`}
               alt={name}
@@ -380,21 +401,27 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
           <div className="copy-block">
             <div className="cb-head">
               <span className="cb-label">Short description</span>
-              <button className="btn-mini" onClick={() => copyText(copy.shortDescription)}>Copy</button>
+              <button className="btn-mini" onClick={() => doCopy(copy.shortDescription, "short")}>
+                {copiedKey === "short" ? "Copied!" : "Copy"}
+              </button>
             </div>
             <div className="cb-text">{copy.shortDescription}</div>
           </div>
           <div className="copy-block">
             <div className="cb-head">
               <span className="cb-label">Long description</span>
-              <button className="btn-mini" onClick={() => copyText(copy.longDescription)}>Copy</button>
+              <button className="btn-mini" onClick={() => doCopy(copy.longDescription, "long")}>
+                {copiedKey === "long" ? "Copied!" : "Copy"}
+              </button>
             </div>
             <div className="cb-text">{copy.longDescription}</div>
           </div>
           <div className="copy-block">
             <div className="cb-head">
               <span className="cb-label">Slide headlines</span>
-              <button className="btn-mini" onClick={() => copyText(copy.slideHeadlines.join("\n"))}>Copy all</button>
+              <button className="btn-mini" onClick={() => doCopy(copy.slideHeadlines.join("\n"), "headlines")}>
+                {copiedKey === "headlines" ? "Copied!" : "Copy all"}
+              </button>
             </div>
             <div className="cb-text">{copy.slideHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}</div>
           </div>

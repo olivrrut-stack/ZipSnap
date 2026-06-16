@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ZipSnap Test Extension",
+  "name": "ZipSnap Sample Extension",
   "version": "1.0.0",
-  "description": "A tiny sample extension used to test ZipSnap's auto-capture.",
+  "description": "A sample extension for trying out ZipSnap's auto-capture feature.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "ZipSnap Test"
