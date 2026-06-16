@@ -168,8 +168,9 @@ export async function runRender(
   const files: string[] = [];
 
   onStep("Rendering screenshots");
-  for (let i = 0; i < 5 && shots.length > 0; i++) {
-    const shot = shots[i % shots.length];
+  const screenshotCount = Math.min(5, shots.length);
+  for (let i = 0; i < screenshotCount; i++) {
+    const shot = shots[i];
     const buf = await renderScreenshot({
       brand,
       headline: copy.slideHeadlines[i],
