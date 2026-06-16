@@ -214,8 +214,10 @@ export default function Home() {
           </h1>
           <p className="subhead">
             Drag in your Chrome extension — a <span className="mono">.zip</span> or its folder.
-            ZipSnap unpacks it, captures its real screens, builds the promo tiles, and writes the
-            store listing — automatically, at the exact sizes the Chrome Web Store requires.
+            ZipSnap loads it in a real browser, captures every UI surface, writes an optimized
+            store listing with title and keywords, checks your permissions for rejection risks,
+            generates a paste-ready privacy policy, and designs branded icon files at every
+            required size — all automatically, in about 30 seconds.
           </p>
 
           {!job && (
@@ -332,7 +334,7 @@ export default function Home() {
               <div className="steps">
                 <div className="step"><div className="step-num">1</div><h3>Drop your extension</h3><p>Drag in a .zip or your unpacked folder. ZipSnap reads its manifest to find every screen it has — popup, options, and on-page UI.</p></div>
                 <div className="step"><div className="step-num">2</div><h3>We capture it live</h3><p>It loads your extension in a real browser and photographs its actual screens — even site-specific ones, on the site they belong to.</p></div>
-                <div className="step"><div className="step-num">3</div><h3>Download the kit</h3><p>Five screenshots, both promo tiles, and an AI-written listing — framed in your extension&apos;s own brand color, ready to submit.</p></div>
+                <div className="step"><div className="step-num">3</div><h3>Download the kit</h3><p>Screenshots, promo tiles, an optimized listing with title and keywords, a permissions report, a privacy policy, and branded icons — everything the Chrome Web Store needs.</p></div>
               </div>
             </section>
 
@@ -343,8 +345,12 @@ export default function Home() {
                 <span className="spec"><b>5×</b> screenshots · 1280×800</span>
                 <span className="spec"><b>1×</b> small promo · 440×280</span>
                 <span className="spec"><b>1×</b> marquee · 1400×560</span>
-                <span className="spec"><b>Listing</b> · short + long + category</span>
+                <span className="spec"><b>Listing</b> · title, short + long desc, category</span>
+                <span className="spec"><b>7×</b> keywords</span>
                 <span className="spec"><b>5×</b> slide headlines</span>
+                <span className="spec"><b>Permissions</b> · rejection risk report</span>
+                <span className="spec"><b>Privacy policy</b> · paste-ready</span>
+                <span className="spec"><b>Icons</b> · 128 / 48 / 32 / 16 px</span>
               </div>
             </section>
           </>

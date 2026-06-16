@@ -378,10 +378,15 @@ h1.hero-title .accent {
 }
 .section-title {
   text-align: center;
-  font-size: clamp(26px, 4vw, 38px);
-  letter-spacing: -0.03em;
-  font-weight: 600;
+  font-size: clamp(32px, 5vw, 54px);
+  letter-spacing: -0.035em;
+  font-weight: 640;
+  line-height: 1.05;
   margin-bottom: 46px;
+  background: var(--chrome-sweep);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .steps {
   display: grid;
