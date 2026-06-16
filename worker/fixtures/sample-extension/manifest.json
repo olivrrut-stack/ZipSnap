@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "ZipSnap Sample Extension",
+  "name": "FocusDash",
   "version": "1.0.0",
-  "description": "A sample extension for trying out ZipSnap's auto-capture feature.",
+  "description": "Track your focus sessions and daily productivity streaks right from your toolbar.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ZipSnap Test"
+    "default_title": "FocusDash"
   },
   "options_page": "options.html",
   "background": {

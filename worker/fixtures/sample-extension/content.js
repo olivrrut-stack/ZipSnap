@@ -2,10 +2,10 @@
 // the user is viewing. Phase 1 will screenshot this overlay on a demo page;
 // for Phase 0 it just needs to exist so the manifest reader detects it.
 (function () {
-  if (document.getElementById("zipsnap-test-badge")) return;
+  if (document.getElementById("focusdash-badge")) return;
   const badge = document.createElement("div");
-  badge.id = "zipsnap-test-badge";
-  badge.textContent = "✦ ZipSnap Test active";
+  badge.id = "focusdash-badge";
+  badge.textContent = "✦ FocusDash active";
   Object.assign(badge.style, {
     position: "fixed",
     bottom: "16px",
