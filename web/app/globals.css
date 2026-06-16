@@ -677,6 +677,115 @@ h1.hero-title .accent {
   color: var(--text);
   white-space: pre-wrap;
 }
+
+.cb-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+
+.title-charcount {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* keyword chips */
+.keyword-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.keyword-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* permissions */
+.perm-safe-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.perm-safe-item {
+  font-size: 12px;
+  font-family: var(--font-mono), monospace;
+  color: var(--green);
+  padding: 3px 8px;
+  background: rgba(52, 199, 89, 0.08);
+  border: 1px solid rgba(52, 199, 89, 0.2);
+  border-radius: 6px;
+}
+.perm-flagged-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.perm-flagged-item {
+  padding: 10px 12px;
+  background: rgba(255, 159, 10, 0.07);
+  border: 1px solid rgba(255, 159, 10, 0.25);
+  border-radius: 8px;
+}
+.perm-flag-header {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--yellow);
+  margin-bottom: 4px;
+}
+.perm-flag-reason {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.perm-flag-fix {
+  font-size: 12px;
+  color: var(--accent-2);
+}
+.perm-all-clear {
+  font-size: 13px;
+  color: var(--green);
+  margin-top: 6px;
+}
+
+/* icon previews */
+.icon-preview-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.icon-preview-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.icon-preview-item img {
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.icon-size-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* privacy policy text — allow line breaks */
+.cb-text--privacy {
+  white-space: pre-wrap;
+}
+
 .btn-mini {
   font-family: var(--font-mono), monospace;
   font-size: 12px;

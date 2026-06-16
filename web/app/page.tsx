@@ -15,6 +15,13 @@ interface Copy {
   longDescription: string;
   suggestedCategory: string;
   slideHeadlines: string[];
+  title?: string;
+  keywords?: string[];
+  permissionsAnalysis?: {
+    safe: string[];
+    flagged: Array<{ permission: string; reason: string; suggestion: string }>;
+  };
+  privacyPolicy?: string;
 }
 interface JobState {
   id: string;
@@ -25,6 +32,7 @@ interface JobState {
   brandColor?: string;
   images: string[];
   copy?: Copy;
+  iconKit?: { files: string[] };
 }
 
 const PCT: Record<Status, number> = {
@@ -152,7 +160,7 @@ export default function Home() {
         setJob({
           id: jobId, status: s.status, step: s.step ?? STEP_LABEL[s.status as Status] ?? "",
           error: s.error, extensionName: s.extensionName, brandColor: s.brandColor,
-          images: s.images ?? [], copy: s.copy,
+          images: s.images ?? [], copy: s.copy, iconKit: s.iconKit,
         });
         if (s.status === "done" || s.status === "error") break;
       }
@@ -425,8 +433,107 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
             </div>
             <div className="cb-text">{copy.slideHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}</div>
           </div>
+
+          {copy.title && (
+            <div className="copy-block">
+              <div className="cb-head">
+                <span className="cb-label">Store title <span className="cb-meta">(45 chars max)</span></span>
+                <button className="btn-mini" onClick={() => doCopy(copy.title!, "title")}>
+                  {copiedKey === "title" ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <div className="cb-text">{copy.title}</div>
+              <div className="title-charcount" style={{ color: copy.title.length > 45 ? "var(--red)" : "var(--text-faint)" }}>
+                {copy.title.length}/45
+              </div>
+            </div>
+          )}
+
+          {copy.keywords?.length ? (
+            <div className="copy-block">
+              <div className="cb-head">
+                <span className="cb-label">Keywords</span>
+                <button className="btn-mini" onClick={() => doCopy(copy.keywords!.join(", "), "keywords")}>
+                  {copiedKey === "keywords" ? "Copied!" : "Copy all"}
+                </button>
+              </div>
+              <div className="keyword-chips">
+                {copy.keywords.map((kw, i) => (
+                  <span key={i} className="keyword-chip">{kw}</span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {copy.permissionsAnalysis && (
+            <div className="copy-block">
+              <div className="cb-head">
+                <span className="cb-label">Permissions</span>
+              </div>
+              {copy.permissionsAnalysis.safe.length > 0 && (
+                <div className="perm-safe-list">
+                  {copy.permissionsAnalysis.safe.map((p) => (
+                    <span key={p} className="perm-safe-item">✓ {p}</span>
+                  ))}
+                </div>
+              )}
+              {copy.permissionsAnalysis.flagged.length > 0 && (
+                <div className="perm-flagged-list">
+                  {copy.permissionsAnalysis.flagged.map((f) => (
+                    <div key={f.permission} className="perm-flagged-item">
+                      <div className="perm-flag-header">⚠ {f.permission}</div>
+                      <div className="perm-flag-reason">{f.reason}</div>
+                      <div className="perm-flag-fix">→ {f.suggestion}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {copy.permissionsAnalysis.flagged.length === 0 && copy.permissionsAnalysis.safe.length > 0 && (
+                <div className="perm-all-clear">All permissions look good ✓</div>
+              )}
+            </div>
+          )}
+
+          {copy.privacyPolicy && (
+            <div className="copy-block">
+              <div className="cb-head">
+                <span className="cb-label">Privacy policy</span>
+                <button className="btn-mini" onClick={() => doCopy(copy.privacyPolicy!, "privacy")}>
+                  {copiedKey === "privacy" ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <div className="cb-text cb-text--privacy">{copy.privacyPolicy}</div>
+            </div>
+          )}
         </>
       )}
+
+      {job.iconKit?.files?.length ? (
+        <div className="copy-block">
+          <div className="cb-head">
+            <span className="cb-label">Generated icons</span>
+            <span className="cb-meta">All sizes included in your kit</span>
+          </div>
+          <div className="icon-preview-row">
+            {job.iconKit.files.map((filename) => {
+              const size = filename.match(/icon-(\d+)\.png/)?.[1];
+              return (
+                <div key={filename} className="icon-preview-item">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`${WORKER}/api/jobs/${job.id}/icon/${filename}`}
+                    alt={`${size}px icon`}
+                    width={size ? Math.min(Number(size), 64) : 64}
+                    height={size ? Math.min(Number(size), 64) : 64}
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                  <span className="icon-size-label">{size}px</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="cta-row" style={{ marginTop: 16, justifyContent: "flex-start" }}>
         <button className="btn btn-ghost" onClick={onReset}>Generate another</button>
