@@ -44,14 +44,17 @@ async function withServiceWorker(
   if (manifest.background?.service_worker) {
     return { resolvedPath: extensionPath, cleanup: async () => {} };
   }
-  const tmpDir = await mkdtemp(path.join(tmpdir(), "zipsnap-ext-"));
+  // Generate a path that doesn't exist yet so cp creates it as a flat copy
+  // (if dest already exists as a directory, Node's cp nests src inside it)
+  const tmpParent = await mkdtemp(path.join(tmpdir(), "zipsnap-ext-"));
+  const tmpDir = path.join(tmpParent, "ext");
   await cp(extensionPath, tmpDir, { recursive: true });
   await writeFile(path.join(tmpDir, "_zipsnap_bg.js"), "// ZipSnap stub\n", "utf8");
   const patched = { ...manifest, background: { service_worker: "_zipsnap_bg.js" } };
   await writeFile(path.join(tmpDir, "manifest.json"), JSON.stringify(patched, null, 2), "utf8");
   return {
     resolvedPath: tmpDir,
-    cleanup: () => rm(tmpDir, { recursive: true, force: true }).catch(() => {}),
+    cleanup: () => rm(tmpParent, { recursive: true, force: true }).catch(() => {}),
   };
 }
 
