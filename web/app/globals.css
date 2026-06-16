@@ -1,13 +1,13 @@
 :root {
-  --bg: #08080c;
-  --bg-soft: #0e0e15;
-  --panel: #12121b;
-  --panel-2: #16161f;
-  --line: #23232f;
-  --line-soft: #1b1b26;
+  --bg: #090909;
+  --bg-soft: #111111;
+  --panel: #141414;
+  --panel-2: #181818;
+  --line: #252525;
+  --line-soft: #1e1e1e;
   --text: #ECECF1;
-  --text-dim: #9a9aae;
-  --text-faint: #6b6b80;
+  --text-dim: #9a9aaa;
+  --text-faint: #6b6b78;
   --blue: #4285f4;
   --blue-light: #8ab4f8;
   --red: #ea4335;
@@ -38,11 +38,10 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  /* subtle violet glow behind the hero */
   background-image:
-    radial-gradient(900px 520px at 50% -12%, rgba(66, 133, 244, 0.20), transparent 70%),
-    radial-gradient(620px 420px at 84% 2%, rgba(52, 168, 83, 0.10), transparent 72%),
-    radial-gradient(520px 380px at 15% 8%, rgba(234, 67, 53, 0.08), transparent 72%);
+    radial-gradient(900px 520px at 50% -12%, rgba(66, 133, 244, 0.12), transparent 70%),
+    radial-gradient(620px 420px at 84% 2%, rgba(52, 168, 83, 0.07), transparent 72%),
+    radial-gradient(520px 380px at 15% 8%, rgba(234, 67, 53, 0.06), transparent 72%);
   background-repeat: no-repeat;
 }
 
@@ -609,26 +608,26 @@ h1.hero-title .accent {
   margin: 6px 0 22px;
 }
 .result-shot {
-  border: 1px solid rgba(190, 205, 220, 0.28);
+  border: 1px solid rgba(160, 170, 180, 0.30);
   border-radius: 10px;
   overflow: hidden;
   background: var(--bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 .result-frame-bar {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 9px 10px;
-  background: var(--panel-2);
-  border-bottom: 1px solid rgba(190, 205, 220, 0.15);
+  background: #c8ccd3;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
 }
 .result-frame-bar .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  opacity: 0.35;
+  opacity: 0.9;
 }
 .result-frame-bar .dot:nth-child(1) { background: var(--red); }
 .result-frame-bar .dot:nth-child(2) { background: var(--yellow); }

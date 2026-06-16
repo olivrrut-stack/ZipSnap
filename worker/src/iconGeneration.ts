@@ -36,12 +36,11 @@ export async function generateIcons(
 
 Extension name: "${extensionName}"
 Description: ${description}
-Brand color: ${brandColor}
 
 CRITICAL RULES — follow exactly:
 1. Output ONLY the raw SVG markup. Start with <svg and end with </svg>. Zero other text.
 2. The SVG must have: viewBox="0 0 128 128" width="128" height="128"
-3. Use a rounded rectangle as the background (rx="20") filled with the brand color
+3. Use a rounded rectangle as the background (rx="20") filled with one of the Chrome brand colors: #4285F4 (blue), #34A853 (green), #FBBC05 (yellow), or #EA4335 (red). Pick whichever best suits the extension's purpose.
 4. Draw 1-2 simple white (#ffffff) geometric shapes that symbolize the extension's purpose
 5. NO text elements — icons must be legible at 16×16 pixels
 6. Keep it minimal: rounded rect background + 1-2 clean white shapes only
