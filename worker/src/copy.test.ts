@@ -6,6 +6,19 @@ const VALID = {
   longDescription: "Does one clear thing.\n\n• Feature one\n• Feature two",
   suggestedCategory: STORE_CATEGORIES[0],
   slideHeadlines: ["One Two Three", "Four Five Six", "Seven Eight Nine", "Ten Eleven Twelve", "Last One Here"],
+  title: "Example Extension",
+  keywords: ["example use case", "problem solved", "target user", "key feature", "main benefit", "search term", "related query"],
+  permissionsAnalysis: {
+    safe: ["storage"],
+    flagged: [
+      {
+        permission: "tabs",
+        reason: "The extension does not appear to need full tabs access.",
+        suggestion: "Use activeTab instead to limit access to the current tab only.",
+      },
+    ],
+  },
+  privacyPolicy: "This extension does not collect or transmit any personal data. Contact: privacy@example.com",
 };
 
 describe("StoreCopySchema", () => {

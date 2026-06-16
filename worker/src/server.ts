@@ -73,8 +73,21 @@ function findManifestDir(root: string, depth = 2): string | null {
 
 /** Plain-text descriptions file bundled into the kit zip. */
 function descriptionsText(name: string, copy: StoreCopy): string {
+  const flaggedSection = copy.permissionsAnalysis?.flagged?.length
+    ? [
+        `FLAGGED PERMISSIONS:`,
+        ...copy.permissionsAnalysis.flagged.map(
+          (f) => `  ${f.permission}: ${f.reason}\n  → ${f.suggestion}`
+        ),
+        ``,
+      ]
+    : [];
+
   return [
     `${name} — Chrome Web Store listing`,
+    ``,
+    `TITLE (max 45 chars):`,
+    copy.title ?? "",
     ``,
     `CATEGORY: ${copy.suggestedCategory}`,
     ``,
@@ -84,8 +97,17 @@ function descriptionsText(name: string, copy: StoreCopy): string {
     `LONG DESCRIPTION:`,
     copy.longDescription,
     ``,
+    `KEYWORDS:`,
+    (copy.keywords ?? []).join(", "),
+    ``,
     `SCREENSHOT HEADLINES:`,
-    ...copy.slideHeadlines.map((h, i) => `${i + 1}. ${h}`),
+    ...(copy.slideHeadlines ?? []).map((h, i) => `${i + 1}. ${h}`),
+    ``,
+    `PERMISSIONS ANALYSIS:`,
+    `  Safe: ${(copy.permissionsAnalysis?.safe ?? []).join(", ") || "(none)"}`,
+    ...flaggedSection,
+    `PRIVACY POLICY:`,
+    copy.privacyPolicy ?? "",
     ``,
   ].join("\n");
 }
