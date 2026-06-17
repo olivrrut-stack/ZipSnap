@@ -42,7 +42,9 @@ export const StoreCopySchema = z.object({
     ),
   suggestedCategory: z
     .enum(STORE_CATEGORIES)
-    .describe("The single best-fit Chrome Web Store category."),
+    .describe(
+      `The single best-fit Chrome Web Store category. Must be EXACTLY one of these strings (copy verbatim): ${STORE_CATEGORIES.join(" | ")}.`,
+    ),
   slideHeadlines: z
     .array(z.string())
     .length(5)
