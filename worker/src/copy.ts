@@ -178,7 +178,7 @@ export async function generateStoreCopy(capture: CaptureResult): Promise<StoreCo
   const client = new Anthropic({ maxRetries: 4 });
 
   const response = await client.messages.parse({
-    model: "claude-opus-4-8",
+    model: "claude-sonnet-4-6",
     max_tokens: 16000,
     thinking: { type: "adaptive" },
     system: SYSTEM_PROMPT,
