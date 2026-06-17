@@ -408,8 +408,10 @@ function Results({
   const [hexInput, setHexInput] = useState("#64748b");
   const [rerendering, setRerendering] = useState(false);
   const [renderKey, setRenderKey] = useState(0);
+  const [rerenderError, setRerenderError] = useState<string | null>(null);
 
   async function applyColor() {
+    setRerenderError(null);
     if (!isHex(pickerColor) || pickerColor === accentColor || rerendering) return;
     setRerendering(true);
     try {
@@ -424,7 +426,7 @@ function Results({
       setAccentColor(pickerColor);
       setRenderKey((k) => k + 1);
     } catch {
-      // leave state as-is; user can retry
+      setRerenderError("Re-render failed — please try again.");
     } finally {
       setRerendering(false);
     }
@@ -444,6 +446,14 @@ function Results({
           {job.extensionName ?? "Your kit"} — ready
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <a
+            className="btn btn-primary"
+            href={`${WORKER}/api/jobs/${job.id}/kit`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Download kit (.zip)
+          </a>
           <div style={{
             background: "var(--surface-2, #1e2030)",
             border: "1px solid var(--border, #2e3050)",
@@ -502,15 +512,12 @@ function Results({
             >
               {rerendering ? "Applying…" : "Apply"}
             </button>
+            {rerenderError && (
+              <div style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>
+                {rerenderError}
+              </div>
+            )}
           </div>
-          <a
-            className="btn btn-primary"
-            href={`${WORKER}/api/jobs/${job.id}/kit`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Download kit (.zip)
-          </a>
         </div>
       </div>
 
