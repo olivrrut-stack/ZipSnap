@@ -440,9 +440,17 @@ function Results({
 
   return (
     <div className="panel">
-      <div className="panel-head">
-        <div className="panel-title">
-          {job.brandColor && <span className="swatch" style={{ background: job.brandColor }} />}
+      <div className="panel-head" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }}>
+        <div style={{
+          background: "var(--chrome-sweep)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          fontSize: 22,
+          fontWeight: 680,
+          letterSpacing: "-0.02em",
+          lineHeight: 1.2,
+        }}>
           {job.extensionName ?? "Your kit"} — ready
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
@@ -451,6 +459,7 @@ function Results({
             href={`${WORKER}/api/jobs/${job.id}/kit`}
             target="_blank"
             rel="noreferrer"
+            style={{ width: 188, textAlign: "center", boxSizing: "border-box" }}
           >
             Download kit (.zip)
           </a>
