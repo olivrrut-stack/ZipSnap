@@ -19,7 +19,7 @@ import cors from "cors";
 import multer from "multer";
 import rateLimit from "express-rate-limit";
 import AdmZip from "adm-zip";
-import { runCapture, runRender } from "./pipeline";
+import { runCapture, runRender, isValidHex } from "./pipeline";
 import { generateStoreCopy, type StoreCopy } from "./copy";
 import { generateIcons } from "./iconGeneration";
 import type { CaptureResult } from "./types";
@@ -120,6 +120,20 @@ function descriptionsText(name: string, copy: StoreCopy): string {
   ].join("\n");
 }
 
+/** Zips the kit and icon folders into a single downloadable archive. */
+async function packageKit(job: Job, kitDir: string, iconsDir: string | undefined): Promise<void> {
+  const zip = new AdmZip();
+  zip.addLocalFolder(kitDir);
+  if (iconsDir) zip.addLocalFolder(iconsDir, "icons");
+  zip.addFile(
+    "descriptions.txt",
+    Buffer.from(descriptionsText(job.capture!.extension.name, job.copy!), "utf8"),
+  );
+  const zipPath = path.join(job.dir, "zipsnap-kit.zip");
+  zip.writeZip(zipPath);
+  job.kitZipPath = zipPath;
+}
+
 /** Runs the whole pipeline for one job, updating its status as it goes. */
 async function processJob(job: Job): Promise<void> {
   try {
@@ -156,14 +170,7 @@ async function processJob(job: Job): Promise<void> {
 
     job.status = "packaging";
     job.step = "Packaging the kit";
-    const zip = new AdmZip();
-    zip.addLocalFolder(kitDir);
-    if (iconsDir) zip.addLocalFolder(iconsDir, "icons");
-    zip.addFile("descriptions.txt", Buffer.from(descriptionsText(capture.extension.name, copy), "utf8"));
-    const zipPath = path.join(job.dir, "zipsnap-kit.zip");
-    zip.writeZip(zipPath);
-    job.kitZipPath = zipPath;
-
+    await packageKit(job, kitDir, iconsDir);
     job.status = "done";
     job.step = "Done";
   } catch (err) {
@@ -353,6 +360,72 @@ app.get("/api/jobs/:id/icon/:name", (req, res) => {
     return;
   }
   res.sendFile(path.join(job.iconsDir, req.params.name), { dotfiles: "allow" });
+});
+
+// Re-render the kit with a new brand color.
+app.post("/api/jobs/:id/rerender", express.json(), async (req, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job) {
+    res.status(404).json({ error: "No such job." });
+    return;
+  }
+  if (job.status !== "done") {
+    res.status(409).json({ error: "Job is not done yet." });
+    return;
+  }
+  const { color } = req.body as { color?: string };
+  if (!color || !isValidHex(color)) {
+    res.status(400).json({ error: "color must be a 6-digit hex string like #ff0000." });
+    return;
+  }
+  if (!job.capture || !job.copy) {
+    res.status(409).json({ error: "Job capture data unavailable." });
+    return;
+  }
+
+  job.status = "rendering";
+  job.step = "Re-rendering with new color";
+
+  try {
+    const { kitDir, files } = await runRender(
+      job.capture,
+      job.copy,
+      job.outputDir,
+      (s) => (job.step = s),
+      color,
+    );
+    job.kitDir = kitDir;
+    job.images = files.map((f) => path.basename(f));
+
+    job.step = "Re-generating icons";
+    let newIconsDir: string | undefined;
+    try {
+      const iconResult = await generateIcons(
+        job.capture.extension.name,
+        job.capture.extension.description,
+        color,
+        job.outputDir,
+      );
+      job.iconsDir = iconResult.iconsDir;
+      job.iconFiles = iconResult.files;
+      newIconsDir = iconResult.iconsDir;
+    } catch {
+      // icon generation is best-effort
+    }
+
+    await packageKit(job, kitDir, newIconsDir ?? job.iconsDir);
+    job.status = "done";
+    job.step = "Done";
+
+    res.json({
+      images: job.images,
+      iconKit: job.iconFiles?.length ? { files: job.iconFiles } : null,
+    });
+  } catch (err) {
+    job.status = "done";
+    job.error = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: job.error });
+  }
 });
 
 // Download the finished kit zip.
