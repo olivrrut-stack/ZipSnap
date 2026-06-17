@@ -20,6 +20,10 @@ import type { StoreCopy } from "./copy";
 /** Optional progress hook so callers (server) can report steps to the UI. */
 export type OnStep = (step: string) => void;
 
+export function isValidHex(color: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(color);
+}
+
 export interface RunCaptureOptions {
   /**
    * "Sign in once, then capture" mode: pauses with a visible browser window
@@ -154,8 +158,9 @@ export async function runRender(
   copy: StoreCopy,
   outputDir: string,
   onStep: OnStep = () => {},
+  colorOverride?: string,
 ): Promise<{ kitDir: string; files: string[] }> {
-  const brand = makeBrand(capture.brandColor);
+  const brand = makeBrand(colorOverride ?? capture.brandColor);
   const surfaces: CapturedSurface[] = [
     capture.surfaces.popup,
     capture.surfaces.options,

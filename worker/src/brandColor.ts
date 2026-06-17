@@ -12,7 +12,7 @@ import type { BrowserContext } from "playwright";
  *
  * Returns a hex string, falling back to a neutral purple if anything fails.
  */
-const FALLBACK = "#6d5efc";
+const FALLBACK = "#64748b";
 
 export async function extractBrandColor(
   context: BrowserContext,

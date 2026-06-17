@@ -32,6 +32,7 @@ process.env.ZIPSNAP_HEADLESS = "1";
 
 const PORT = Number(process.env.PORT ?? 4000);
 const JOBS_DIR = path.join(os.tmpdir(), "zipsnap-jobs");
+const DEFAULT_COLOR = "#64748b";
 
 type JobStatus =
   | "queued"
@@ -133,7 +134,7 @@ async function processJob(job: Job): Promise<void> {
     await writeFile(path.join(job.outputDir, "copy.json"), JSON.stringify(copy, null, 2), "utf8");
 
     job.status = "rendering";
-    const { kitDir, files } = await runRender(capture, copy, job.outputDir, (s) => (job.step = s));
+    const { kitDir, files } = await runRender(capture, copy, job.outputDir, (s) => (job.step = s), DEFAULT_COLOR);
     job.kitDir = kitDir;
     job.images = files.map((f) => path.basename(f));
 
@@ -143,7 +144,7 @@ async function processJob(job: Job): Promise<void> {
       const iconResult = await generateIcons(
         capture.extension.name,
         capture.extension.description,
-        capture.brandColor,
+        DEFAULT_COLOR,
         job.outputDir,
       );
       job.iconsDir = iconResult.iconsDir;

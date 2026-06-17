@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { readFile, mkdtemp, rm, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { pngSize, saveVerified } from "./pipeline";
+import { pngSize, saveVerified, isValidHex } from "./pipeline";
 
 const ICON = path.resolve(__dirname, "..", "fixtures", "sample-extension", "icon128.png");
 
@@ -36,5 +36,21 @@ describe("saveVerified", () => {
       /came out 128x128, expected 1280x800/,
     );
     expect(await readdir(dir)).not.toContain("icon.png");
+  });
+});
+
+describe("isValidHex", () => {
+  it("accepts valid 6-digit hex strings", () => {
+    expect(isValidHex("#64748b")).toBe(true);
+    expect(isValidHex("#FFFFFF")).toBe(true);
+    expect(isValidHex("#000000")).toBe(true);
+    expect(isValidHex("#aAbBcC")).toBe(true);
+  });
+  it("rejects invalid values", () => {
+    expect(isValidHex("#fff")).toBe(false);
+    expect(isValidHex("64748b")).toBe(false);
+    expect(isValidHex("#gggggg")).toBe(false);
+    expect(isValidHex("not-a-color")).toBe(false);
+    expect(isValidHex("")).toBe(false);
   });
 });
