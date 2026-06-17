@@ -9,6 +9,15 @@ import { ok, info, warn } from "./log";
 const VIEWPORT = { width: 1280, height: 800 };
 
 /**
+ * Returns true if the page looks like a login wall — either by having a
+ * password input or by matching common login URL patterns.
+ */
+export function looksLikeLoginPage(url: string, hasPasswordField: boolean): boolean {
+  if (hasPasswordField) return true;
+  return /\/(login|signin|sign-in|auth|session|account\/login)/i.test(url);
+}
+
+/**
  * Captures the popup. A popup is a small widget, so we screenshot just its
  * <body>, which Playwright crops tightly to the popup's real size.
  */
@@ -106,6 +115,7 @@ export async function captureContentOverlay(
   context: BrowserContext,
   manifest: any,
   outputDir: string,
+  opts: { onLoginNeeded?: (page: Page, url: string) => Promise<void> } = {},
 ): Promise<CapturedSurface> {
   const target = resolveContentTarget(manifest);
   if (!target) {
@@ -146,6 +156,21 @@ export async function captureContentOverlay(
     } else {
       await page.waitForTimeout(1500);
     }
+
+    // Detect login wall on real-site targets only.
+    if (target.kind === "site" && opts.onLoginNeeded) {
+      const currentUrl = page.url();
+      const hasPasswordField = await page.evaluate(
+        () => !!document.querySelector('input[type="password"]'),
+      );
+      if (looksLikeLoginPage(currentUrl, hasPasswordField)) {
+        info("Login wall detected — pausing for user sign-in");
+        await opts.onLoginNeeded(page, currentUrl);
+        // Give the content script time to inject after the post-login navigation.
+        await page.waitForTimeout(2000);
+      }
+    }
+
     const file = "content-overlay.png";
     await page.screenshot({ path: path.join(outputDir, file) });
     ok(`Content overlay captured (${VIEWPORT.width}x${VIEWPORT.height}) -> ${file}`);
