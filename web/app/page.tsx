@@ -6,6 +6,17 @@ import Footer from "./components/Footer";
 import Gallery from "./components/Gallery";
 import { sizeOf, deriveName } from "./lib/utils";
 
+const SWATCHES = [
+  "#64748b","#6b7280","#78716c","#71717a","#374151","#1e1e2e",
+  "#1e3a8a","#2563eb","#7c3aed","#9333ea","#4f46e5","#0d9488",
+  "#166534","#059669","#d97706","#ea580c","#dc2626","#be123c",
+  "#0284c7","#0891b2","#65a30d","#db2777","#e11d48","#92400e",
+] as const;
+
+function isHex(v: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(v);
+}
+
 const WORKER = process.env.NEXT_PUBLIC_WORKER_URL ?? "http://localhost:4000";
 
 type Status = "queued" | "capturing" | "writing" | "rendering" | "packaging" | "done" | "error";
@@ -329,7 +340,17 @@ export default function Home() {
             </div>
           )}
 
-          {job?.status === "done" && <Results job={job} onReset={reset} />}
+          {job?.status === "done" && (
+            <Results
+              job={job}
+              onReset={reset}
+              onRerender={(images, iconKit) =>
+                setJob((prev) =>
+                  prev ? { ...prev, images, ...(iconKit ? { iconKit } : {}) } : prev,
+                )
+              }
+            />
+          )}
         </section>
 
         {!job && (
@@ -370,10 +391,44 @@ export default function Home() {
   );
 }
 
-function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
+function Results({
+  job,
+  onReset,
+  onRerender,
+}: {
+  job: JobState;
+  onReset: () => void;
+  onRerender: (images: string[], iconKit: { files: string[] } | undefined) => void;
+}) {
   const copy = job.copy;
   const health = job.manifestHealth;
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [accentColor, setAccentColor] = useState("#64748b");
+  const [pickerColor, setPickerColor] = useState("#64748b");
+  const [hexInput, setHexInput] = useState("#64748b");
+  const [rerendering, setRerendering] = useState(false);
+  const [renderKey, setRenderKey] = useState(0);
+
+  async function applyColor() {
+    if (!isHex(pickerColor) || pickerColor === accentColor || rerendering) return;
+    setRerendering(true);
+    try {
+      const res = await fetch(`${WORKER}/api/jobs/${job.id}/rerender`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color: pickerColor }),
+      });
+      if (!res.ok) throw new Error("Re-render failed.");
+      const data = await res.json() as { images: string[]; iconKit: { files: string[] } | null };
+      onRerender(data.images, data.iconKit ?? undefined);
+      setAccentColor(pickerColor);
+      setRenderKey((k) => k + 1);
+    } catch {
+      // leave state as-is; user can retry
+    } finally {
+      setRerendering(false);
+    }
+  }
 
   function doCopy(text: string, key: string) {
     navigator.clipboard?.writeText(text);
@@ -388,31 +443,115 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
           {job.brandColor && <span className="swatch" style={{ background: job.brandColor }} />}
           {job.extensionName ?? "Your kit"} — ready
         </div>
-        <a className="btn btn-primary" href={`${WORKER}/api/jobs/${job.id}/kit`} target="_blank" rel="noreferrer">
-          Download kit (.zip)
-        </a>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <div style={{
+            background: "var(--surface-2, #1e2030)",
+            border: "1px solid var(--border, #2e3050)",
+            borderRadius: 10,
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            width: 188,
+          }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 4 }}>
+              {SWATCHES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => { setPickerColor(c); setHexInput(c); }}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 4,
+                    background: c,
+                    border: pickerColor === c ? "2px solid #fff" : "2px solid transparent",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                  aria-label={c}
+                  title={c}
+                />
+              ))}
+            </div>
+            <input
+              type="text"
+              value={hexInput}
+              maxLength={7}
+              onChange={(e) => {
+                setHexInput(e.target.value);
+                if (isHex(e.target.value)) setPickerColor(e.target.value);
+              }}
+              style={{
+                fontFamily: "monospace",
+                fontSize: 12,
+                padding: "4px 8px",
+                borderRadius: 6,
+                border: "1px solid var(--border, #2e3050)",
+                background: "var(--surface-1, #161720)",
+                color: "var(--text, #e2e8f0)",
+                width: "100%",
+                boxSizing: "border-box",
+              }}
+              aria-label="Hex color code"
+            />
+            <button
+              className="btn btn-primary"
+              style={{ width: "100%", padding: "6px 0", fontSize: 13 }}
+              disabled={!isHex(pickerColor) || pickerColor === accentColor || rerendering}
+              onClick={applyColor}
+            >
+              {rerendering ? "Applying…" : "Apply"}
+            </button>
+          </div>
+          <a
+            className="btn btn-primary"
+            href={`${WORKER}/api/jobs/${job.id}/kit`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Download kit (.zip)
+          </a>
+        </div>
       </div>
 
-      <div className="result-grid">
-        {job.images.map((name) => (
-          <div className="result-shot" key={name}>
-            <div className="result-frame-bar">
-              <span className="dot" />
-              <span className="dot" />
-              <span className="dot" />
+      <div style={{ position: "relative" }}>
+        <div
+          className="result-grid"
+          style={{ opacity: rerendering ? 0.4 : 1, transition: "opacity 0.2s" }}
+        >
+          {job.images.map((name) => (
+            <div className="result-shot" key={name}>
+              <div className="result-frame-bar">
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`${WORKER}/api/jobs/${job.id}/image/${name}?v=${renderKey}`}
+                alt={name}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  e.currentTarget.parentElement?.classList.add("img-error");
+                }}
+              />
+              <div className="img-error-note">Preview unavailable</div>
+              <div className="cap">{name} · {sizeOf(name)}</div>
             </div>
-            <img
-              src={`${WORKER}/api/jobs/${job.id}/image/${name}`}
-              alt={name}
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                e.currentTarget.parentElement?.classList.add("img-error");
-              }}
-            />
-            <div className="img-error-note">Preview unavailable</div>
-            <div className="cap">{name} · {sizeOf(name)}</div>
+          ))}
+        </div>
+        {rerendering && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <span className="spinner" style={{ width: 32, height: 32 }} />
           </div>
-        ))}
+        )}
       </div>
 
       {copy && (
@@ -561,7 +700,7 @@ function Results({ job, onReset }: { job: JobState; onReset: () => void }) {
                 <div key={filename} className="icon-preview-item">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`${WORKER}/api/jobs/${job.id}/icon/${filename}`}
+                    src={`${WORKER}/api/jobs/${job.id}/icon/${filename}?v=${renderKey}`}
                     alt={`${size}px icon`}
                     width={size ? Math.min(Number(size), 64) : 64}
                     height={size ? Math.min(Number(size), 64) : 64}
