@@ -8,6 +8,7 @@ import { mkdir, writeFile, cp, rm } from "node:fs/promises";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createInterface } from "node:readline/promises";
+import type { Page } from "playwright";
 import { readManifest, extractMeta, detectSurfaces, checkManifestHealth } from "./manifest";
 import { launchExtension, resolveExtensionId, teardown } from "./extensionContext";
 import { extractBrandColor } from "./brandColor";
@@ -32,6 +33,12 @@ export interface RunCaptureOptions {
    * effect under ZIPSNAP_HEADLESS=1 (the server never enables it).
    */
   interactive?: boolean;
+  /**
+   * Called when a login wall is detected during content-script capture.
+   * The server uses this to pause the job and stream the browser to the user.
+   * The returned promise should resolve once the user has signed in.
+   */
+  onLoginNeeded?: (page: Page, url: string) => Promise<void>;
 }
 
 /**
@@ -110,7 +117,9 @@ export async function runCapture(
     onStep("Capturing screens");
     const popup = await capturePopup(loaded.context, extensionId, surfaces.popup, outputDir);
     const options = await captureOptions(loaded.context, extensionId, surfaces.optionsPage, outputDir);
-    const contentOverlay = await captureContentOverlay(loaded.context, manifest, outputDir);
+    const contentOverlay = await captureContentOverlay(loaded.context, manifest, outputDir, {
+      onLoginNeeded: opts.onLoginNeeded,
+    });
 
     const result: CaptureResult = {
       extension: { id: extensionId, ...meta },
