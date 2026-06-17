@@ -316,7 +316,7 @@ export default function Home() {
                   {job!.extensionName ?? picked?.name ?? "Your extension"}
                 </div>
                 <span className="mono" style={{ color: "var(--text-faint)", fontSize: 12.5 }}>
-                  {Math.round(PCT[job!.status])}%
+                  {Math.round(PCT[job!.status] ?? 0)}%
                 </span>
               </div>
               <div className="progress">
