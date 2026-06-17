@@ -243,6 +243,10 @@ export default function Home() {
     await fetch(`${WORKER}/api/jobs/${jobId}/browser-reload`, { method: "POST" }).catch(() => {});
   }
 
+  async function relayBack(jobId: string) {
+    await fetch(`${WORKER}/api/jobs/${jobId}/browser-back`, { method: "POST" }).catch(() => {});
+  }
+
   async function loginDone(jobId: string) {
     await fetch(`${WORKER}/api/jobs/${jobId}/login-done`, { method: "POST" }).catch(() => {});
   }
@@ -448,11 +452,19 @@ export default function Home() {
               <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
                 <button
                   className="btn btn-ghost"
+                  title="Go back to the previous page"
+                  onClick={() => void relayBack(job.id)}
+                  style={{ flexShrink: 0 }}
+                >
+                  ← Back
+                </button>
+                <button
+                  className="btn btn-ghost"
                   title="Reloads the page — useful if the extension didn't inject after login"
                   onClick={() => void relayReload(job.id)}
                   style={{ flexShrink: 0 }}
                 >
-                  ↺ Reload page
+                  ↺ Reload
                 </button>
                 <button
                   className="btn btn-primary"

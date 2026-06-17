@@ -505,6 +505,21 @@ app.post("/api/jobs/:id/browser-scroll", loginInteractionLimiter, express.json()
   }
 });
 
+// Navigate the login browser back one step.
+app.post("/api/jobs/:id/browser-back", loginInteractionLimiter, async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job || job.status !== "awaiting-login" || !job.loginPage) {
+    res.status(409).json({ error: "No active login session." });
+    return;
+  }
+  try {
+    await job.loginPage.goBack({ waitUntil: "domcontentloaded" });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Browser interaction failed." });
+  }
+});
+
 // Reload the login browser page (triggers content-script re-injection).
 app.post("/api/jobs/:id/browser-reload", loginInteractionLimiter, async (req: express.Request<{ id: string }>, res) => {
   const job = jobs.get(req.params.id);
