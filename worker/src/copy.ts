@@ -41,9 +41,24 @@ export const StoreCopySchema = z.object({
       "The full store description as plain text. The FIRST line must be one concise sentence stating exactly what the extension does. Then a blank line, then short feature/benefit lines (you may prefix each with '• '). No markdown headings, no hype, no emoji spam.",
     ),
   suggestedCategory: z
-    .enum(STORE_CATEGORIES)
+    .string()
+    .transform((val): (typeof STORE_CATEGORIES)[number] => {
+      const exact = STORE_CATEGORIES.find((c) => c === val);
+      if (exact) return exact;
+      const ci = STORE_CATEGORIES.find(
+        (c) => c.toLowerCase() === val.toLowerCase(),
+      );
+      if (ci) return ci;
+      // partial match — model returned e.g. "Productivity" → "Tools"
+      const partial = STORE_CATEGORIES.find(
+        (c) =>
+          c.toLowerCase().includes(val.toLowerCase()) ||
+          val.toLowerCase().includes(c.toLowerCase()),
+      );
+      return partial ?? "Tools";
+    })
     .describe(
-      `The single best-fit Chrome Web Store category. Must be EXACTLY one of these strings (copy verbatim): ${STORE_CATEGORIES.join(" | ")}.`,
+      `The single best-fit Chrome Web Store category. Must be exactly one of: ${STORE_CATEGORIES.join(" | ")}.`,
     ),
   slideHeadlines: z
     .array(z.string())
