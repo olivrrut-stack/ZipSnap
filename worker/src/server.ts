@@ -171,9 +171,71 @@ async function processJob(job: Job): Promise<void> {
   }
 }
 
+// --- Concurrency queue ---------------------------------------------------
+// Each job launches a real Chromium, so running many at once exhausts the
+// box's CPU/RAM. Cap how many run concurrently; the rest wait in "queued"
+// (a status the poll endpoint and UI already understand).
+const MAX_CONCURRENT_JOBS = Math.max(1, Number(process.env.ZIPSNAP_MAX_CONCURRENCY ?? 2));
+// Hard cap on how many jobs may wait at once, so a flood can't grow the
+// in-memory job map without bound. Beyond this, new jobs are refused with 503.
+const MAX_PENDING_JOBS = 50;
+
+let activeJobs = 0;
+const pendingQueue: Job[] = [];
+
+/** Starts queued jobs up to the concurrency cap, refilling as each finishes. */
+function pumpQueue(): void {
+  while (activeJobs < MAX_CONCURRENT_JOBS && pendingQueue.length > 0) {
+    const job = pendingQueue.shift()!;
+    activeJobs++;
+    void processJob(job).finally(() => {
+      activeJobs--;
+      pumpQueue();
+    });
+  }
+}
+
+// --- Zip-bomb guard ------------------------------------------------------
+// A small compressed upload can legally decompress to many gigabytes. Inspect
+// the entries before extracting and refuse anything that would blow up disk/RAM.
+const MAX_UNZIPPED_BYTES = 250 * 1024 * 1024; // generous for a real extension
+const MAX_ENTRIES = 5000;
+const MAX_COMPRESSION_RATIO = 200;
+
+interface ZipGuardResult {
+  ok: boolean;
+  status?: number;
+  error?: string;
+}
+
+/** Validates an already-parsed zip is not a decompression bomb. */
+function inspectZip(zip: AdmZip, compressedBytes: number): ZipGuardResult {
+  const entries = zip.getEntries();
+  if (entries.length > MAX_ENTRIES) {
+    return { ok: false, status: 413, error: `Too many files in zip (max ${MAX_ENTRIES}).` };
+  }
+  let totalUnzipped = 0;
+  for (const entry of entries) {
+    totalUnzipped += entry.header.size;
+    if (totalUnzipped > MAX_UNZIPPED_BYTES) {
+      return { ok: false, status: 413, error: "Zip contents are too large when unpacked." };
+    }
+  }
+  if (compressedBytes > 0 && totalUnzipped / compressedBytes > MAX_COMPRESSION_RATIO) {
+    return { ok: false, status: 413, error: "Zip compression ratio is suspiciously high." };
+  }
+  return { ok: true };
+}
+
 const app = express();
+// Deployed behind a single proxy hop (e.g. Railway). Trust exactly one hop so
+// express-rate-limit keys on the real client IP instead of the proxy's, without
+// blindly trusting a spoofable X-Forwarded-For chain.
+app.set("trust proxy", 1);
 app.use(cors());
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+// Real unpacked extensions are a few MB; cap uploads low to bound the RAM held
+// per request by multer.memoryStorage() and to shrink the abuse surface.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 // Each job launches a real Chrome instance and calls the Anthropic API, so
 // cap how often a single client can start new jobs.
@@ -196,12 +258,33 @@ app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, 
       res.status(400).json({ error: "No file uploaded. Send a .zip in the 'extension' field." });
       return;
     }
+
+    // Refuse new work if the wait queue is already saturated.
+    if (pendingQueue.length >= MAX_PENDING_JOBS) {
+      res.status(503).json({ error: "Server is busy right now. Please try again in a few minutes." });
+      return;
+    }
+
+    // Parse and vet the zip (bomb guard) before touching the disk.
+    let zip: AdmZip;
+    try {
+      zip = new AdmZip(req.file.buffer);
+    } catch {
+      res.status(400).json({ error: "Invalid or corrupt zip file." });
+      return;
+    }
+    const guard = inspectZip(zip, req.file.size);
+    if (!guard.ok) {
+      res.status(guard.status ?? 413).json({ error: guard.error });
+      return;
+    }
+
     const id = randomUUID();
     const dir = path.join(JOBS_DIR, id);
     const extRoot = path.join(dir, "extension");
     await mkdir(extRoot, { recursive: true });
 
-    new AdmZip(req.file.buffer).extractAllTo(extRoot, true);
+    zip.extractAllTo(extRoot, true);
     const extPath = findManifestDir(extRoot);
     if (!extPath) {
       await rm(dir, { recursive: true, force: true }).catch(() => {});
@@ -219,7 +302,8 @@ app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, 
       images: [],
     };
     jobs.set(id, job);
-    void processJob(job); // run in the background; client polls for status
+    pendingQueue.push(job); // wait for a free slot; client polls for status
+    pumpQueue();
 
     res.status(202).json({ jobId: id });
   } catch (err) {
