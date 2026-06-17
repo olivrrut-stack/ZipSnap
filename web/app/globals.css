@@ -580,6 +580,24 @@ h1.hero-title .accent {
   color: var(--text);
   margin-bottom: 6px;
 }
+.faq-q::before {
+  content: "Q. ";
+  color: var(--accent-2);
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+}
+.faq-a::before {
+  content: "A. ";
+  color: var(--accent-2);
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+}
 .faq-a {
   font-size: 13.5px;
   color: var(--text-dim);
