@@ -58,6 +58,7 @@ interface Job {
   copy?: StoreCopy;
   iconsDir?: string;
   iconFiles?: string[];
+  rerendering?: boolean;
 }
 
 const jobs = new Map<string, Job>();
@@ -255,6 +256,14 @@ const createJobLimiter = rateLimit({
   message: { error: "Too many jobs from this address. Please try again later." },
 });
 
+const rerenderLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many rerender requests. Please wait a moment." },
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY) });
 });
@@ -363,7 +372,7 @@ app.get("/api/jobs/:id/icon/:name", (req, res) => {
 });
 
 // Re-render the kit with a new brand color.
-app.post("/api/jobs/:id/rerender", express.json(), async (req, res) => {
+app.post("/api/jobs/:id/rerender", rerenderLimiter, express.json(), async (req: express.Request<{ id: string }>, res) => {
   const job = jobs.get(req.params.id);
   if (!job) {
     res.status(404).json({ error: "No such job." });
@@ -371,6 +380,10 @@ app.post("/api/jobs/:id/rerender", express.json(), async (req, res) => {
   }
   if (job.status !== "done") {
     res.status(409).json({ error: "Job is not done yet." });
+    return;
+  }
+  if (job.rerendering) {
+    res.status(409).json({ error: "A re-render is already in progress for this job." });
     return;
   }
   const { color } = req.body as { color?: string };
@@ -383,6 +396,7 @@ app.post("/api/jobs/:id/rerender", express.json(), async (req, res) => {
     return;
   }
 
+  job.rerendering = true;
   job.status = "rendering";
   job.step = "Re-rendering with new color";
 
@@ -425,6 +439,8 @@ app.post("/api/jobs/:id/rerender", express.json(), async (req, res) => {
     job.status = "done";
     job.error = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: job.error });
+  } finally {
+    job.rerendering = false;
   }
 });
 
