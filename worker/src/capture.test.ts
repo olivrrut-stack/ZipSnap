@@ -31,4 +31,16 @@ describe("looksLikeLoginPage", () => {
     expect(looksLikeLoginPage("https://twitter.com/home", false)).toBe(false);
     expect(looksLikeLoginPage("https://linkedin.com/feed", false)).toBe(false);
   });
+
+  it("returns true for soft login wall: email input + sign-in CTA (LinkedIn homepage pattern)", () => {
+    expect(looksLikeLoginPage("https://www.linkedin.com/", false, true)).toBe(true);
+  });
+
+  it("returns false when email input exists but no sign-in CTA", () => {
+    expect(looksLikeLoginPage("https://example.com/newsletter", false, false)).toBe(false);
+  });
+
+  it("returns false for root URL with no signals at all", () => {
+    expect(looksLikeLoginPage("https://github.com/", false, false)).toBe(false);
+  });
 });

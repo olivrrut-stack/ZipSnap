@@ -12,9 +12,14 @@ const VIEWPORT = { width: 1280, height: 800 };
  * Returns true if the page looks like a login wall — either by having a
  * password input or by matching common login URL patterns.
  */
-export function looksLikeLoginPage(url: string, hasPasswordField: boolean): boolean {
+export function looksLikeLoginPage(
+  url: string,
+  hasPasswordField: boolean,
+  hasEmailOnlyForm = false,
+): boolean {
   if (hasPasswordField) return true;
-  return /\/(login|signin|sign-in|auth|session|account\/login)/i.test(url);
+  if (/\/(login|signin|sign-in|auth|session|account\/login)/i.test(url)) return true;
+  return hasEmailOnlyForm;
 }
 
 /**
@@ -160,10 +165,17 @@ export async function captureContentOverlay(
     // Detect login wall on real-site targets only.
     if (target.kind === "site" && opts.onLoginNeeded) {
       const currentUrl = page.url();
-      const hasPasswordField = await page.evaluate(
-        () => !!document.querySelector('input[type="password"]'),
-      );
-      if (looksLikeLoginPage(currentUrl, hasPasswordField)) {
+      const { hasPasswordField, hasEmailOnlyForm } = await page.evaluate(() => {
+        const hasPasswordField = !!document.querySelector('input[type="password"]');
+        const hasEmailInput = !!document.querySelector(
+          'input[type="email"], input[name*="email"], input[id*="email"]',
+        );
+        const hasSignInCta = Array.from(
+          document.querySelectorAll('button, [role="button"], a'),
+        ).some((el) => /^(sign\s*in|log\s*in)$/i.test((el.textContent ?? "").trim()));
+        return { hasPasswordField, hasEmailOnlyForm: hasEmailInput && hasSignInCta };
+      });
+      if (looksLikeLoginPage(currentUrl, hasPasswordField, hasEmailOnlyForm)) {
         info("Login wall detected — pausing for user sign-in");
         await opts.onLoginNeeded(page, currentUrl);
         // Give the content script time to inject after the post-login navigation.

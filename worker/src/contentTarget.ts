@@ -42,8 +42,21 @@ function hostOf(pattern: string): string {
  * content-rich page where on-page UI is far more likely to appear.
  */
 const LANDING_HINTS: Record<string, string> = {
+  // YouTube: avoid empty logged-out homepage
   "www.youtube.com": "results?search_query=technology",
   "youtube.com": "results?search_query=technology",
+  // Sites with public homepages — go straight to the login page so detection fires
+  "github.com": "login",
+  "www.github.com": "login",
+  "x.com": "i/flow/login",
+  "twitter.com": "i/flow/login",
+  "www.twitter.com": "i/flow/login",
+  "linkedin.com": "login",
+  "www.linkedin.com": "login",
+  "reddit.com": "login",
+  "www.reddit.com": "login",
+  "instagram.com": "accounts/login",
+  "www.instagram.com": "accounts/login",
 };
 
 /** Turns a specific match pattern into a concrete, visitable URL. */
