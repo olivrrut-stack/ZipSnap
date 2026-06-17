@@ -23,6 +23,7 @@ import { runCapture, runRender, isValidHex } from "./pipeline";
 import { generateStoreCopy, type StoreCopy } from "./copy";
 import { generateIcons } from "./iconGeneration";
 import type { CaptureResult } from "./types";
+import type { Page } from "playwright";
 
 dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env") });
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
@@ -37,6 +38,7 @@ const DEFAULT_COLOR = "#64748b";
 type JobStatus =
   | "queued"
   | "capturing"
+  | "awaiting-login"
   | "writing"
   | "rendering"
   | "packaging"
@@ -59,6 +61,11 @@ interface Job {
   iconsDir?: string;
   iconFiles?: string[];
   rerendering?: boolean;
+  loginPage?: Page;               // live Playwright page held during awaiting-login
+  loginResolver?: () => void;     // resolves the pause promise when user clicks Done
+  loginTimeout?: ReturnType<typeof setTimeout>;
+  snapPending?: boolean;          // throttle: true while a screenshot is being encoded
+  lastSnapshot?: Buffer;          // last JPEG frame, returned while snapPending is true
 }
 
 const jobs = new Map<string, Job>();
@@ -139,7 +146,27 @@ async function packageKit(job: Job, kitDir: string, iconsDir: string | undefined
 async function processJob(job: Job): Promise<void> {
   try {
     job.status = "capturing";
-    const capture = await runCapture(job.extPath, job.outputDir, (s) => (job.step = s));
+    const capture = await runCapture(job.extPath, job.outputDir, (s) => (job.step = s), {
+      onLoginNeeded: async (page, url) => {
+        const host = (() => { try { return new URL(url).host; } catch { return url; } })();
+        job.status = "awaiting-login";
+        job.step = `Sign in to ${host} in the browser below`;
+        job.loginPage = page;
+        await new Promise<void>((resolve, reject) => {
+          job.loginResolver = resolve;
+          job.loginTimeout = setTimeout(
+            () => reject(new Error("Login timed out — complete sign-in within 5 minutes and try again.")),
+            5 * 60 * 1000,
+          );
+        });
+        clearTimeout(job.loginTimeout);
+        job.loginPage = undefined;
+        job.loginResolver = undefined;
+        job.lastSnapshot = undefined;
+        job.status = "capturing";
+        job.step = "Resuming capture";
+      },
+    });
     job.capture = capture;
 
     job.status = "writing";
@@ -264,6 +291,14 @@ const rerenderLimiter = rateLimit({
   message: { error: "Too many rerender requests. Please wait a moment." },
 });
 
+const loginInteractionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300, // ~5 req/sec — covers 300 ms snapshot polling + interaction
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many browser interaction requests. Please slow down." },
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY) });
 });
@@ -369,6 +404,111 @@ app.get("/api/jobs/:id/icon/:name", (req, res) => {
     return;
   }
   res.sendFile(path.join(job.iconsDir, req.params.name), { dotfiles: "allow" });
+});
+
+// Stream a JPEG snapshot of the live login browser view.
+app.get("/api/jobs/:id/browser-snapshot", loginInteractionLimiter, async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job || job.status !== "awaiting-login" || !job.loginPage) {
+    res.status(409).end();
+    return;
+  }
+  // If a screenshot is already being encoded, return the last frame immediately.
+  if (job.snapPending && job.lastSnapshot) {
+    res.set("Content-Type", "image/jpeg");
+    res.send(job.lastSnapshot);
+    return;
+  }
+  job.snapPending = true;
+  try {
+    const buf = await job.loginPage.screenshot({ type: "jpeg", quality: 60 });
+    job.lastSnapshot = buf;
+    res.set("Content-Type", "image/jpeg");
+    res.send(buf);
+  } catch {
+    res.status(500).end();
+  } finally {
+    job.snapPending = false;
+  }
+});
+
+// Relay a mouse click to the login browser.
+app.post("/api/jobs/:id/browser-click", loginInteractionLimiter, express.json(), async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job || job.status !== "awaiting-login" || !job.loginPage) {
+    res.status(409).json({ error: "No active login session." });
+    return;
+  }
+  const { xFrac, yFrac } = req.body as { xFrac?: unknown; yFrac?: unknown };
+  if (
+    typeof xFrac !== "number" || typeof yFrac !== "number" ||
+    xFrac < 0 || xFrac > 1 || yFrac < 0 || yFrac > 1
+  ) {
+    res.status(400).json({ error: "xFrac and yFrac must be numbers between 0 and 1." });
+    return;
+  }
+  await job.loginPage.mouse.click(Math.round(xFrac * 1280), Math.round(yFrac * 800));
+  res.json({ ok: true });
+});
+
+// Relay a keystroke to the login browser.
+app.post("/api/jobs/:id/browser-type", loginInteractionLimiter, express.json(), async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job || job.status !== "awaiting-login" || !job.loginPage) {
+    res.status(409).json({ error: "No active login session." });
+    return;
+  }
+  const { text } = req.body as { text?: unknown };
+  if (typeof text !== "string" || text.length === 0 || text.length > 200) {
+    res.status(400).json({ error: "text must be a non-empty string of up to 200 characters." });
+    return;
+  }
+  if (text === "Backspace") {
+    await job.loginPage.keyboard.press("Backspace");
+  } else if (text === "Enter") {
+    await job.loginPage.keyboard.press("Enter");
+  } else {
+    await job.loginPage.keyboard.type(text);
+  }
+  res.json({ ok: true });
+});
+
+// Relay a scroll event to the login browser.
+app.post("/api/jobs/:id/browser-scroll", loginInteractionLimiter, express.json(), async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job || job.status !== "awaiting-login" || !job.loginPage) {
+    res.status(409).json({ error: "No active login session." });
+    return;
+  }
+  const { deltaY } = req.body as { deltaY?: unknown };
+  if (typeof deltaY !== "number") {
+    res.status(400).json({ error: "deltaY must be a number." });
+    return;
+  }
+  await job.loginPage.mouse.wheel(0, Math.max(-500, Math.min(500, deltaY)));
+  res.json({ ok: true });
+});
+
+// Reload the login browser page (triggers content-script re-injection).
+app.post("/api/jobs/:id/browser-reload", loginInteractionLimiter, async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job || job.status !== "awaiting-login" || !job.loginPage) {
+    res.status(409).json({ error: "No active login session." });
+    return;
+  }
+  await job.loginPage.reload({ waitUntil: "domcontentloaded" });
+  res.json({ ok: true });
+});
+
+// Signal that login is complete — resumes the paused capture.
+app.post("/api/jobs/:id/login-done", loginInteractionLimiter, async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job || job.status !== "awaiting-login" || !job.loginResolver) {
+    res.status(409).json({ error: "No active login session." });
+    return;
+  }
+  job.loginResolver();
+  res.json({ ok: true });
 });
 
 // Re-render the kit with a new brand color.
