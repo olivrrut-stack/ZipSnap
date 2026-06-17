@@ -172,7 +172,10 @@ Rules:
  * Returns strictly-shaped, validated copy (the SDK enforces the schema).
  */
 export async function generateStoreCopy(capture: CaptureResult): Promise<StoreCopy> {
-  const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
+  // reads ANTHROPIC_API_KEY from the environment. maxRetries bumped above the
+  // SDK default (2) so a job can ride out an Anthropic 529 "overloaded" spike
+  // before failing — these are transient and clear within seconds.
+  const client = new Anthropic({ maxRetries: 4 });
 
   const response = await client.messages.parse({
     model: "claude-opus-4-8",
