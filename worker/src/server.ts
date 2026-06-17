@@ -152,19 +152,23 @@ async function processJob(job: Job): Promise<void> {
         job.status = "awaiting-login";
         job.step = `Sign in to ${host} in the browser below`;
         job.loginPage = page;
-        await new Promise<void>((resolve, reject) => {
-          job.loginResolver = resolve;
-          job.loginTimeout = setTimeout(
-            () => reject(new Error("Login timed out — complete sign-in within 5 minutes and try again.")),
-            5 * 60 * 1000,
-          );
-        });
-        clearTimeout(job.loginTimeout);
-        job.loginPage = undefined;
-        job.loginResolver = undefined;
-        job.lastSnapshot = undefined;
-        job.status = "capturing";
-        job.step = "Resuming capture";
+        try {
+          await new Promise<void>((resolve, reject) => {
+            job.loginResolver = resolve;
+            job.loginTimeout = setTimeout(
+              () => reject(new Error("Login timed out — complete sign-in within 5 minutes and try again.")),
+              5 * 60 * 1000,
+            );
+          });
+          job.status = "capturing";
+          job.step = "Resuming capture";
+        } finally {
+          clearTimeout(job.loginTimeout);
+          job.loginPage = undefined;
+          job.loginResolver = undefined;
+          job.loginTimeout = undefined;
+          job.lastSnapshot = undefined;
+        }
       },
     });
     job.capture = capture;
@@ -447,8 +451,12 @@ app.post("/api/jobs/:id/browser-click", loginInteractionLimiter, express.json(),
     res.status(400).json({ error: "xFrac and yFrac must be numbers between 0 and 1." });
     return;
   }
-  await job.loginPage.mouse.click(Math.round(xFrac * 1280), Math.round(yFrac * 800));
-  res.json({ ok: true });
+  try {
+    await job.loginPage.mouse.click(Math.round(xFrac * 1280), Math.round(yFrac * 800));
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Browser interaction failed." });
+  }
 });
 
 // Relay a keystroke to the login browser.
@@ -463,14 +471,18 @@ app.post("/api/jobs/:id/browser-type", loginInteractionLimiter, express.json(), 
     res.status(400).json({ error: "text must be a non-empty string of up to 200 characters." });
     return;
   }
-  if (text === "Backspace") {
-    await job.loginPage.keyboard.press("Backspace");
-  } else if (text === "Enter") {
-    await job.loginPage.keyboard.press("Enter");
-  } else {
-    await job.loginPage.keyboard.type(text);
+  try {
+    if (text === "Backspace") {
+      await job.loginPage.keyboard.press("Backspace");
+    } else if (text === "Enter") {
+      await job.loginPage.keyboard.press("Enter");
+    } else {
+      await job.loginPage.keyboard.type(text);
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Browser interaction failed." });
   }
-  res.json({ ok: true });
 });
 
 // Relay a scroll event to the login browser.
@@ -485,8 +497,12 @@ app.post("/api/jobs/:id/browser-scroll", loginInteractionLimiter, express.json()
     res.status(400).json({ error: "deltaY must be a number." });
     return;
   }
-  await job.loginPage.mouse.wheel(0, Math.max(-500, Math.min(500, deltaY)));
-  res.json({ ok: true });
+  try {
+    await job.loginPage.mouse.wheel(0, Math.max(-500, Math.min(500, deltaY)));
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Browser interaction failed." });
+  }
 });
 
 // Reload the login browser page (triggers content-script re-injection).
@@ -496,8 +512,12 @@ app.post("/api/jobs/:id/browser-reload", loginInteractionLimiter, async (req: ex
     res.status(409).json({ error: "No active login session." });
     return;
   }
-  await job.loginPage.reload({ waitUntil: "domcontentloaded" });
-  res.json({ ok: true });
+  try {
+    await job.loginPage.reload({ waitUntil: "domcontentloaded" });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Browser interaction failed." });
+  }
 });
 
 // Signal that login is complete — resumes the paused capture.
@@ -507,8 +527,12 @@ app.post("/api/jobs/:id/login-done", loginInteractionLimiter, async (req: expres
     res.status(409).json({ error: "No active login session." });
     return;
   }
-  job.loginResolver();
-  res.json({ ok: true });
+  try {
+    job.loginResolver();
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Browser interaction failed." });
+  }
 });
 
 // Re-render the kit with a new brand color.
