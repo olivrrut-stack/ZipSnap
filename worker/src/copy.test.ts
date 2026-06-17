@@ -15,6 +15,7 @@ const VALID = {
         permission: "tabs",
         reason: "The extension does not appear to need full tabs access.",
         suggestion: "Use activeTab instead to limit access to the current tab only.",
+        listingJustification: "This extension uses the tabs API to detect the active tab URL for routing — no tab data is stored or transmitted.",
       },
     ],
   },
