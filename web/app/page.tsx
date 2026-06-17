@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 import Footer from "./components/Footer";
 import Gallery from "./components/Gallery";
@@ -19,7 +19,7 @@ function isHex(v: string): boolean {
 
 const WORKER = process.env.NEXT_PUBLIC_WORKER_URL ?? "http://localhost:4000";
 
-type Status = "queued" | "capturing" | "writing" | "rendering" | "packaging" | "done" | "error";
+type Status = "queued" | "capturing" | "awaiting-login" | "writing" | "rendering" | "packaging" | "done" | "error";
 
 interface ManifestIssue {
   type: "error" | "warning";
@@ -55,11 +55,12 @@ interface JobState {
 }
 
 const PCT: Record<Status, number> = {
-  queued: 8, capturing: 32, writing: 60, rendering: 82, packaging: 93, done: 100, error: 100,
+  queued: 8, capturing: 32, "awaiting-login": 35, writing: 60, rendering: 82, packaging: 93, done: 100, error: 100,
 };
 const STEP_LABEL: Record<Status, string> = {
   queued: "Queued…",
   capturing: "Loading your extension & capturing its screens…",
+  "awaiting-login": "Sign in below to continue…",
   writing: "Writing your store listing with AI…",
   rendering: "Rendering the store images…",
   packaging: "Packaging your kit…",
@@ -113,8 +114,20 @@ export default function Home() {
   const [preparing, setPreparing] = useState(false);
   const [job, setJob] = useState<JobState | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [snapKey, setSnapKey] = useState(0);
   const zipInputRef = useRef<HTMLInputElement>(null);
   const dirInputRef = useRef<HTMLInputElement>(null);
+  const loginPanelRef = useRef<HTMLDivElement>(null);
+
+  const awaitingLogin = job?.status === "awaiting-login";
+
+  useEffect(() => {
+    if (!awaitingLogin) return;
+    const id = setInterval(() => setSnapKey((k) => k + 1), 300);
+    // Auto-focus the panel so keyboard events are captured immediately.
+    loginPanelRef.current?.focus();
+    return () => clearInterval(id);
+  }, [awaitingLogin]);
 
   /** Accepts a single .zip, or a folder / set of files (which we zip in-browser). */
   async function accept(opts: { zip?: File | null; entries?: { path: string; file: File }[] }) {
@@ -193,7 +206,48 @@ export default function Home() {
     setPicked(null);
   }
 
-  const working = job && job.status !== "done" && job.status !== "error";
+  async function relayClick(jobId: string, xFrac: number, yFrac: number) {
+    await fetch(`${WORKER}/api/jobs/${jobId}/browser-click`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ xFrac, yFrac }),
+    }).catch(() => {});
+    loginPanelRef.current?.focus();
+  }
+
+  async function relayKey(jobId: string, key: string) {
+    let text: string;
+    if (key === "Backspace" || key === "Enter") {
+      text = key;
+    } else if (key.length === 1) {
+      text = key;
+    } else {
+      return; // Ignore modifier keys, arrows, etc.
+    }
+    await fetch(`${WORKER}/api/jobs/${jobId}/browser-type`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    }).catch(() => {});
+  }
+
+  async function relayScroll(jobId: string, deltaY: number) {
+    await fetch(`${WORKER}/api/jobs/${jobId}/browser-scroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deltaY }),
+    }).catch(() => {});
+  }
+
+  async function relayReload(jobId: string) {
+    await fetch(`${WORKER}/api/jobs/${jobId}/browser-reload`, { method: "POST" }).catch(() => {});
+  }
+
+  async function loginDone(jobId: string) {
+    await fetch(`${WORKER}/api/jobs/${jobId}/login-done`, { method: "POST" }).catch(() => {});
+  }
+
+  const working = job && job.status !== "done" && job.status !== "error" && job.status !== "awaiting-login";
 
   return (
     <main>
@@ -328,6 +382,90 @@ export default function Home() {
                   We&apos;re running a real browser to photograph your extension&apos;s actual UI — usually about half a minute.
                 </p>
               </div>
+            </div>
+          )}
+
+          {awaitingLogin && job && (
+            <div className="panel">
+              <div className="panel-head" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+                <div className="panel-title">Sign in to continue</div>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-faint)", lineHeight: 1.5 }}>
+                  Sign in below so ZipSnap can photograph your extension on this site.
+                  Your credentials are used only in a temporary browser session and deleted when capture finishes.
+                </p>
+              </div>
+
+              {/* Live browser view */}
+              <div
+                ref={loginPanelRef}
+                tabIndex={0}
+                style={{
+                  outline: "none",
+                  cursor: "crosshair",
+                  userSelect: "none",
+                  position: "relative",
+                  borderRadius: 8,
+                  overflow: "hidden",
+                  border: "1px solid var(--line)",
+                }}
+                onKeyDown={(e) => {
+                  e.preventDefault();
+                  void relayKey(job.id, e.key);
+                }}
+                onWheel={(e) => {
+                  void relayScroll(job.id, e.deltaY);
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`${WORKER}/api/jobs/${job.id}/browser-snapshot?t=${snapKey}`}
+                  alt="Live browser view — click to interact"
+                  style={{ width: "100%", display: "block" }}
+                  onClick={(e) => {
+                    const img = e.currentTarget;
+                    const xFrac = e.nativeEvent.offsetX / img.offsetWidth;
+                    const yFrac = e.nativeEvent.offsetY / img.offsetHeight;
+                    void relayClick(job.id, xFrac, yFrac);
+                  }}
+                />
+                <span style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  background: "rgba(0,0,0,0.55)",
+                  color: "#22c55e",
+                  fontSize: 11,
+                  padding: "2px 10px",
+                  borderRadius: 99,
+                  fontFamily: "monospace",
+                  pointerEvents: "none",
+                }}>
+                  ⟳ live
+                </span>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                <button
+                  className="btn btn-ghost"
+                  title="Reloads the page — useful if the extension didn't inject after login"
+                  onClick={() => void relayReload(job.id)}
+                  style={{ flexShrink: 0 }}
+                >
+                  ↺ Reload page
+                </button>
+                <button
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  onClick={() => void loginDone(job.id)}
+                >
+                  Done, I&apos;m logged in →
+                </button>
+              </div>
+
+              <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--text-faint)", textAlign: "center" }}>
+                Click inside the browser above to interact · Type to type · Scroll to scroll
+              </p>
             </div>
           )}
 
