@@ -440,7 +440,7 @@ function Results({
 
   return (
     <div className="panel">
-      <div className="panel-head" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }}>
+      <div className="panel-head" style={{ flexDirection: "column", alignItems: "stretch", gap: 14, flexWrap: "nowrap" }}>
         <div style={{
           background: "var(--chrome-sweep)",
           WebkitBackgroundClip: "text",
@@ -459,7 +459,7 @@ function Results({
             href={`${WORKER}/api/jobs/${job.id}/kit`}
             target="_blank"
             rel="noreferrer"
-            style={{ width: 188, textAlign: "center", boxSizing: "border-box" }}
+            style={{ flex: 1, textAlign: "center", boxSizing: "border-box" }}
           >
             Download kit (.zip)
           </a>
