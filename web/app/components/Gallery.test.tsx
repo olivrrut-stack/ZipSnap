@@ -24,18 +24,18 @@ describe("Gallery", () => {
   it("renders the ticker track with doubled tiles for seamless loop", () => {
     const { container } = render(<Gallery />);
     const items = container.querySelectorAll(".ticker-item");
-    expect(items.length).toBe(8); // 4 tiles × 2 for infinite scroll
+    expect(items.length).toBe(18); // 9 tiles × 2 for infinite scroll
   });
 
   it("marks the duplicate set aria-hidden", () => {
     const { container } = render(<Gallery />);
     const hidden = container.querySelectorAll('[aria-hidden="true"]');
-    expect(hidden.length).toBe(4);
+    expect(hidden.length).toBe(9);
   });
 
-  it("applies silver class to promo and marquee tiles", () => {
+  it("applies silver class to all tiles", () => {
     const { container } = render(<Gallery />);
     const silver = container.querySelectorAll(".ticker-card.silver");
-    expect(silver.length).toBe(4); // 2 silver tiles × 2 duplicates
+    expect(silver.length).toBe(18); // 9 tiles × 2 duplicates
   });
 });
