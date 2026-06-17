@@ -557,6 +557,43 @@ h1.hero-title .accent {
   font-weight: 600;
 }
 
+/* ---------- email capture ---------- */
+.email-capture {
+  margin-top: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.email-label {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.email-row {
+  display: flex;
+  gap: 8px;
+}
+.email-input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+.email-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.email-sent {
+  margin: 0;
+  font-size: 13.5px;
+  color: #34a853;
+}
+
 /* ---------- faq ---------- */
 .faq-list {
   display: flex;

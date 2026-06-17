@@ -70,6 +70,10 @@ interface Job {
 
 const jobs = new Map<string, Job>();
 
+function logEvent(event: string, data: Record<string, unknown> = {}): void {
+  console.log(`[EVENT] ${JSON.stringify({ event, ts: new Date().toISOString(), ...data })}`);
+}
+
 /** Finds the folder that actually contains manifest.json (zip may nest it). */
 function findManifestDir(root: string, depth = 2): string | null {
   if (existsSync(path.join(root, "manifest.json"))) return root;
@@ -145,6 +149,7 @@ async function packageKit(job: Job, kitDir: string, iconsDir: string | undefined
 /** Runs the whole pipeline for one job, updating its status as it goes. */
 async function processJob(job: Job): Promise<void> {
   try {
+    logEvent("job_started", { jobId: job.id });
     job.status = "capturing";
     const capture = await runCapture(job.extPath, job.outputDir, (s) => (job.step = s), {
       onLoginNeeded: async (page, url) => {
@@ -173,6 +178,7 @@ async function processJob(job: Job): Promise<void> {
     });
     job.capture = capture;
 
+    logEvent("job_capture_done", { jobId: job.id, extensionName: capture.extension.name });
     job.status = "writing";
     job.step = "Writing the store listing with AI";
     const copy = await generateStoreCopy(capture);
@@ -205,9 +211,11 @@ async function processJob(job: Job): Promise<void> {
     await packageKit(job, kitDir, iconsDir);
     job.status = "done";
     job.step = "Done";
+    logEvent("job_done", { jobId: job.id, extensionName: job.capture?.extension.name });
   } catch (err) {
     job.status = "error";
     job.error = err instanceof Error ? err.message : String(err);
+    logEvent("job_error", { jobId: job.id, error: job.error });
   }
 }
 
@@ -360,6 +368,7 @@ app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, 
     jobs.set(id, job);
     pendingQueue.push(job); // wait for a free slot; client polls for status
     pumpQueue();
+    logEvent("job_created", { jobId: id });
 
     res.status(202).json({ jobId: id });
   } catch (err) {
@@ -620,6 +629,55 @@ app.post("/api/jobs/:id/rerender", rerenderLimiter, express.json(), async (req: 
     res.status(500).json({ error: job.error });
   } finally {
     job.rerendering = false;
+  }
+});
+
+// Save an email subscriber (logged to Railway; no external service needed yet).
+app.post("/api/subscribe", express.json(), (req, res) => {
+  const { email } = req.body as { email?: unknown };
+  if (typeof email !== "string" || !email.includes("@") || email.length > 254) {
+    res.status(400).json({ error: "Invalid email." });
+    return;
+  }
+  console.log(`[SUBSCRIBER] ${JSON.stringify({ email: email.trim(), ts: new Date().toISOString() })}`);
+  res.json({ ok: true });
+});
+
+const rerecopyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many regeneration requests. Please wait a moment." },
+});
+
+// Regenerate only the AI store copy for a finished job.
+app.post("/api/jobs/:id/recopy", rerecopyLimiter, async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job) { res.status(404).json({ error: "No such job." }); return; }
+  if (job.status !== "done") { res.status(409).json({ error: "Job is not done yet." }); return; }
+  if (!job.capture) { res.status(409).json({ error: "Job capture data unavailable." }); return; }
+
+  const prevStatus = job.status;
+  job.status = "writing";
+  job.step = "Regenerating store listing with AI";
+  try {
+    const copy = await generateStoreCopy(job.capture);
+    job.copy = copy;
+    await writeFile(path.join(job.outputDir, "copy.json"), JSON.stringify(copy, null, 2), "utf8");
+    if (job.kitDir) {
+      job.status = "packaging";
+      job.step = "Repackaging kit";
+      await packageKit(job, job.kitDir, job.iconsDir);
+    }
+    job.status = "done";
+    job.step = "Done";
+    logEvent("job_recopy", { jobId: job.id });
+    res.json({ copy });
+  } catch (err) {
+    job.status = prevStatus;
+    job.step = "Done";
+    res.status(500).json({ error: err instanceof Error ? err.message : "Recopy failed." });
   }
 });
 

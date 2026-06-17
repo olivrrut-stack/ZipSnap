@@ -115,6 +115,8 @@ export default function Home() {
   const [job, setJob] = useState<JobState | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [snapKey, setSnapKey] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
   const dirInputRef = useRef<HTMLInputElement>(null);
   const loginPanelRef = useRef<HTMLDivElement>(null);
@@ -253,6 +255,13 @@ export default function Home() {
 
   const working = job && job.status !== "done" && job.status !== "error" && job.status !== "awaiting-login";
 
+  useEffect(() => {
+    if (!working) { startedAtRef.current = null; setElapsed(0); return; }
+    if (startedAtRef.current === null) startedAtRef.current = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAtRef.current!) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [working]);
+
   return (
     <main>
       <div className="wrap">
@@ -348,15 +357,6 @@ export default function Home() {
                 />
               </div>
 
-              {!picked && !preparing && (
-                <p className="hint" style={{ marginTop: 6 }}>
-                  No extension handy?{" "}
-                  <a href="/sample-extension.zip" download className="link-btn">
-                    Download our sample →
-                  </a>
-                </p>
-              )}
-
               <div className="cta-row">
                 <button className="btn btn-primary" disabled={!picked || preparing} onClick={generate}>
                   Generate my kit →
@@ -375,7 +375,7 @@ export default function Home() {
                   {job!.extensionName ?? picked?.name ?? "Your extension"}
                 </div>
                 <span className="mono" style={{ color: "var(--text-faint)", fontSize: 12.5 }}>
-                  {Math.round(PCT[job!.status] ?? 0)}%
+                  {Math.round(PCT[job!.status] ?? 0)}% · {elapsed}s
                 </span>
               </div>
               <div className="progress">
@@ -578,15 +578,21 @@ function Results({
   onReset: () => void;
   onRerender: (images: string[], iconKit: { files: string[] } | undefined) => void;
 }) {
-  const copy = job.copy;
   const health = job.manifestHealth;
+  const [copy, setCopy] = useState<Copy | undefined>(job.copy);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [accentColor, setAccentColor] = useState("#64748b");
-  const [pickerColor, setPickerColor] = useState("#64748b");
-  const [hexInput, setHexInput] = useState("#64748b");
+  const initial = job.brandColor && /^#[0-9a-fA-F]{6}$/.test(job.brandColor) ? job.brandColor : "#64748b";
+  const [accentColor, setAccentColor] = useState(initial);
+  const [pickerColor, setPickerColor] = useState(initial);
+  const [hexInput, setHexInput] = useState(initial);
   const [rerendering, setRerendering] = useState(false);
   const [renderKey, setRenderKey] = useState(0);
   const [rerenderError, setRerenderError] = useState<string | null>(null);
+  const [recopying, setRecopying] = useState(false);
+  const [recopyError, setRecopyError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   async function applyColor() {
     setRerenderError(null);
@@ -614,6 +620,37 @@ function Results({
     navigator.clipboard?.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 1500);
+  }
+
+  async function regenerateCopy() {
+    setRecopying(true);
+    setRecopyError(null);
+    try {
+      const res = await fetch(`${WORKER}/api/jobs/${job.id}/recopy`, { method: "POST" });
+      if (!res.ok) throw new Error("Regeneration failed.");
+      const data = await res.json() as { copy: Copy };
+      setCopy(data.copy);
+    } catch {
+      setRecopyError("Regeneration failed — please try again.");
+    } finally {
+      setRecopying(false);
+    }
+  }
+
+  async function submitEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setEmailError(null);
+    try {
+      const res = await fetch(`${WORKER}/api/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error("Failed to subscribe.");
+      setEmailSent(true);
+    } catch {
+      setEmailError("Something went wrong — please try again.");
+    }
   }
 
   return (
@@ -750,6 +787,13 @@ function Results({
 
       {copy && (
         <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <span style={{ fontSize: 11, color: "var(--text-faint)", fontFamily: "var(--font-mono), monospace", letterSpacing: "0.06em", textTransform: "uppercase" }}>AI copy</span>
+            <button className="btn-mini" onClick={regenerateCopy} disabled={recopying}>
+              {recopying ? "Regenerating…" : "Regenerate copy"}
+            </button>
+          </div>
+          {recopyError && <div style={{ fontSize: 11, color: "#f87171", marginBottom: 8 }}>{recopyError}</div>}
           {copy.title && (
             <div className="copy-block">
               <div className="cb-head">
@@ -907,6 +951,28 @@ function Results({
           </div>
         </div>
       ) : null}
+
+      <div className="email-capture">
+        {emailSent ? (
+          <p className="email-sent">You&apos;re in. We&apos;ll let you know when paid tiers launch.</p>
+        ) : (
+          <form className="email-form" onSubmit={submitEmail}>
+            <p className="email-label">Stay in the loop — get notified when we launch.</p>
+            <div className="email-row">
+              <input
+                type="email"
+                className="email-input"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Notify me</button>
+            </div>
+            {emailError && <p style={{ fontSize: 11, color: "#f87171", margin: "4px 0 0" }}>{emailError}</p>}
+          </form>
+        )}
+      </div>
 
       <div className="cta-row" style={{ marginTop: 16, justifyContent: "flex-start" }}>
         <button className="btn btn-ghost" onClick={onReset}>Generate another</button>
