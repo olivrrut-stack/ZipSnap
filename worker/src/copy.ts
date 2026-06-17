@@ -41,25 +41,8 @@ export const StoreCopySchema = z.object({
       "The full store description as plain text. The FIRST line must be one concise sentence stating exactly what the extension does. Then a blank line, then short feature/benefit lines (you may prefix each with '• '). No markdown headings, no hype, no emoji spam.",
     ),
   suggestedCategory: z
-    .string()
-    .transform((val): (typeof STORE_CATEGORIES)[number] => {
-      const exact = STORE_CATEGORIES.find((c) => c === val);
-      if (exact) return exact;
-      const ci = STORE_CATEGORIES.find(
-        (c) => c.toLowerCase() === val.toLowerCase(),
-      );
-      if (ci) return ci;
-      // partial match — model returned e.g. "Productivity" → "Tools"
-      const partial = STORE_CATEGORIES.find(
-        (c) =>
-          c.toLowerCase().includes(val.toLowerCase()) ||
-          val.toLowerCase().includes(c.toLowerCase()),
-      );
-      return partial ?? "Tools";
-    })
-    .describe(
-      `The single best-fit Chrome Web Store category. Must be exactly one of: ${STORE_CATEGORIES.join(" | ")}.`,
-    ),
+    .enum(STORE_CATEGORIES)
+    .describe("The single best-fit Chrome Web Store category."),
   slideHeadlines: z
     .array(z.string())
     .length(5)
@@ -184,6 +167,29 @@ Rules:
 - For each flagged permission, listingJustification must be a complete, specific, paste-ready sentence for the Chrome Web Store description. It must name what the permission actually accesses (use the data access info from the brief) and explain exactly why the feature needs it. If no data leaves the device, say so explicitly.
 - The privacy policy must be SPECIFIC to the actual permissions in the brief — not generic. If the extension has 'history' permission, explicitly state what history data is accessed, how it is used, and that it is not shared. Cover every sensitive permission listed. A generic policy that does not address the actual permissions will cause reviewer rejection. Use placeholder contact email: privacy@[extensionname].example.`;
 
+// zodOutputFormat can't represent transforms, so we parse with z.string() for the
+// category field and normalize it to a valid enum value in code afterwards.
+const StoreCopyParseSchema = StoreCopySchema.extend({
+  suggestedCategory: z
+    .string()
+    .describe(
+      `The single best-fit Chrome Web Store category. Must be exactly one of: ${STORE_CATEGORIES.join(" | ")}.`,
+    ),
+});
+
+function normalizeCategory(val: string): (typeof STORE_CATEGORIES)[number] {
+  const exact = STORE_CATEGORIES.find((c) => c === val);
+  if (exact) return exact;
+  const ci = STORE_CATEGORIES.find((c) => c.toLowerCase() === val.toLowerCase());
+  if (ci) return ci;
+  const partial = STORE_CATEGORIES.find(
+    (c) =>
+      c.toLowerCase().includes(val.toLowerCase()) ||
+      val.toLowerCase().includes(c.toLowerCase()),
+  );
+  return partial ?? "Tools";
+}
+
 /**
  * Calls Claude to generate store copy from the captured extension facts.
  * Returns strictly-shaped, validated copy (the SDK enforces the schema).
@@ -206,7 +212,7 @@ export async function generateStoreCopy(capture: CaptureResult): Promise<StoreCo
       },
     ],
     output_config: {
-      format: zodOutputFormat(StoreCopySchema),
+      format: zodOutputFormat(StoreCopyParseSchema),
       effort: "medium",
     },
   });
@@ -217,5 +223,8 @@ export async function generateStoreCopy(capture: CaptureResult): Promise<StoreCo
   if (!response.parsed_output) {
     throw new Error("The AI response could not be parsed into the expected shape.");
   }
-  return response.parsed_output;
+  return {
+    ...response.parsed_output,
+    suggestedCategory: normalizeCategory(response.parsed_output.suggestedCategory),
+  };
 }
