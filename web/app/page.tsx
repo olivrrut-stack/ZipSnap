@@ -363,6 +363,7 @@ export default function Home() {
                 </button>
               </div>
               <p className="hint">No screenshots to take. No design tools. Free during beta.</p>
+              <p className="hint" style={{ marginTop: 4 }}>Your extension is processed in a private session and deleted after 24 hours.</p>
             </>
           )}
 
@@ -519,7 +520,7 @@ export default function Home() {
 
             <section className="section" id="output" style={{ paddingTop: 0 }}>
               <div className="section-label">What you get</div>
-              <h2 className="section-title">Exactly What The Store Demands.</h2>
+              <h2 className="section-title">Exactly what the store demands.</h2>
               <div className="specs">
                 <span className="spec"><b>5×</b> screenshots · 1280×800</span>
                 <span className="spec"><b>1×</b> small promo · 440×280</span>
@@ -530,6 +531,33 @@ export default function Home() {
                 <span className="spec"><b>Permissions</b> · rejection risk report</span>
                 <span className="spec"><b>Privacy policy</b> · paste-ready</span>
                 <span className="spec"><b>Icons</b> · 128 / 48 / 32 / 16 px</span>
+              </div>
+            </section>
+
+            <section className="section" id="faq">
+              <div className="section-label">FAQ</div>
+              <h2 className="section-title">Common questions.</h2>
+              <div className="faq-list">
+                <div className="faq-item">
+                  <div className="faq-q">What if my extension requires login to a site?</div>
+                  <div className="faq-a">ZipSnap pauses and shows you a live browser view so you can sign in. Once you&apos;re logged in, click &ldquo;Done&rdquo; and it continues automatically.</div>
+                </div>
+                <div className="faq-item">
+                  <div className="faq-q">What file formats work?</div>
+                  <div className="faq-a">A <span className="mono">.zip</span> or an unpacked extension folder. Either works — drop it straight in.</div>
+                </div>
+                <div className="faq-item">
+                  <div className="faq-q">How long does it take?</div>
+                  <div className="faq-a">About 30 seconds. A real browser loads your extension, photographs every screen, then AI writes the listing and renders the images.</div>
+                </div>
+                <div className="faq-item">
+                  <div className="faq-q">What happens to my extension files?</div>
+                  <div className="faq-a">Your extension is processed in a temporary private session and deleted after 24 hours. Nothing is stored beyond that or shared with anyone.</div>
+                </div>
+                <div className="faq-item">
+                  <div className="faq-q">Is it really free?</div>
+                  <div className="faq-a">Yes, free during beta. No account needed — drop your extension and go.</div>
+                </div>
               </div>
             </section>
           </>
