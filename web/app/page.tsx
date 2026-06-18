@@ -374,26 +374,23 @@ export default function Home() {
               </div>
 
               {picked && (
-                <div style={{ marginTop: 12 }}>
-                  <label htmlFor="screenshot-url" style={{ display: "block", fontSize: 13, color: "var(--text-faint)", marginBottom: 4 }}>
-                    Custom screenshot URL <span style={{ opacity: 0.6 }}>(optional)</span>
-                  </label>
+                <div style={{ marginTop: 14 }}>
+                  <p style={{ margin: "0 0 6px", fontSize: 13, color: "var(--text-faint)", textAlign: "center" }}>
+                    Or override which page gets automatically photographed — choose your own
+                  </p>
                   <input
                     id="screenshot-url"
-                    type="url"
+                    type="text"
                     value={screenshotUrl}
                     onChange={(e) => setScreenshotUrl(e.target.value)}
-                    placeholder="https://example.com/page-with-your-extension"
+                    placeholder="e.g. dashboard, settings, shopping cart…"
                     style={{
                       width: "100%", boxSizing: "border-box",
                       background: "var(--surface)", border: "1px solid var(--border)",
-                      borderRadius: 6, padding: "7px 10px", fontSize: 13,
+                      borderRadius: 8, padding: "8px 12px", fontSize: 13,
                       color: "var(--text)", outline: "none",
                     }}
                   />
-                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-faint)" }}>
-                    Override which page gets photographed for the content script screenshot.
-                  </p>
                 </div>
               )}
 

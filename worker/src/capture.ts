@@ -191,10 +191,21 @@ export async function captureContentOverlay(
   let isRealSite: boolean;
 
   if (opts.customContentUrl) {
-    url = opts.customContentUrl;
-    note = "Shot on user-specified URL.";
+    const hint = opts.customContentUrl;
+    if (/^https?:\/\//i.test(hint)) {
+      // Full URL — use as-is.
+      url = hint;
+    } else {
+      // Page name or path ("dashboard", "settings", "/checkout") — resolve
+      // against the extension's target domain.
+      const target = resolveContentTarget(manifest);
+      const origin = target?.kind === "site" ? new URL(target.url).origin : null;
+      const path = hint.startsWith("/") ? hint : "/" + hint.toLowerCase().replace(/\s+/g, "-");
+      url = origin ? origin + path : hint;
+    }
+    note = `Shot on user-specified page (${hint}).`;
     isRealSite = true;
-    info(`Content script: using custom URL ${url}`);
+    info(`Content script: using custom page ${url}`);
   } else {
     const target = resolveContentTarget(manifest);
     if (!target) {

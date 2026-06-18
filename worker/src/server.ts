@@ -394,17 +394,9 @@ app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, 
       return;
     }
 
-    const rawUrl = typeof req.body?.customContentUrl === "string" ? req.body.customContentUrl.trim() : "";
-    let customContentUrl: string | undefined;
-    if (rawUrl) {
-      try {
-        new URL(rawUrl);
-        customContentUrl = rawUrl;
-      } catch {
-        res.status(400).json({ error: "customContentUrl is not a valid URL." });
-        return;
-      }
-    }
+    const customContentUrl = typeof req.body?.customContentUrl === "string"
+      ? req.body.customContentUrl.trim() || undefined
+      : undefined;
 
     const job: Job = {
       id,
