@@ -203,11 +203,24 @@ export async function captureContentOverlay(
       if (looksLikeLoginPage(currentUrl, hasPasswordField, hasEmailOnlyForm)) {
         info("Login wall detected — pausing for user sign-in");
         await opts.onLoginNeeded(page, currentUrl);
-        // After login, navigate back to the original target URL. Use "commit" so
-        // heavy SPAs like LinkedIn can't stall us waiting for HTML to finish parsing.
-        await page.goto(url, { waitUntil: "commit", timeout: 15_000 });
+        // After login the browser is on the post-auth page (e.g. LinkedIn feed).
+        // Don't navigate back to `url` — it may be a /login path, and the server
+        // will abort a second visit to it from an authenticated session. If we're
+        // already on the right domain the extension is already injected there.
+        // Only cross-origin: navigate to the target's root.
+        const afterLoginUrl = page.url();
+        let destUrl = "";
+        try {
+          const targetOrigin = new URL(url).origin;
+          if (new URL(afterLoginUrl).origin !== targetOrigin) {
+            destUrl = targetOrigin + "/";
+          }
+        } catch { /* malformed url — skip */ }
+        if (destUrl) {
+          await page.goto(destUrl, { waitUntil: "commit", timeout: 15_000 });
+        }
         await dismissConsent(page);
-        // Give the page and extension time to settle after navigation.
+        // Give the page and extension time to settle.
         await page.waitForTimeout(5000);
       }
     }
