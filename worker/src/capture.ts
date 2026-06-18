@@ -20,7 +20,12 @@ async function forceScreenshot(page: Page, outputPath: string): Promise<void> {
   } catch {
     const cdp = await page.context().newCDPSession(page);
     try {
-      const { data } = await cdp.send("Page.captureScreenshot", { format: "png" }) as { data: string };
+      const { data } = await Promise.race([
+        cdp.send("Page.captureScreenshot", { format: "png" }) as Promise<{ data: string }>,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("CDP screenshot timed out")), 10_000),
+        ),
+      ]);
       await writeFile(outputPath, Buffer.from(data, "base64"));
     } finally {
       await cdp.detach().catch(() => {});

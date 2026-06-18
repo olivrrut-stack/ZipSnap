@@ -89,9 +89,14 @@ async function startScreencast(job: Job): Promise<void> {
 }
 
 async function stopScreencast(job: Job): Promise<void> {
-  await job.cdpSession?.send("Page.stopScreencast").catch(() => {});
-  job.cdpSession?.removeListener("Page.screencastFrame", () => {});
-  job.cdpSession = undefined;
+  if (job.cdpSession) {
+    await Promise.race([
+      job.cdpSession.send("Page.stopScreencast"),
+      new Promise<void>((r) => setTimeout(r, 5_000)),
+    ]).catch(() => {});
+    await job.cdpSession.detach().catch(() => {});
+    job.cdpSession = undefined;
+  }
   job.wsClients?.forEach((ws) => ws.close());
   job.wsClients = undefined;
 }
