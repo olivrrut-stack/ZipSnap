@@ -19,11 +19,12 @@ import cors from "cors";
 import multer from "multer";
 import rateLimit from "express-rate-limit";
 import AdmZip from "adm-zip";
+import { WebSocketServer, WebSocket as WS } from "ws";
 import { runCapture, runRender, isValidHex } from "./pipeline";
 import { generateStoreCopy, type StoreCopy } from "./copy";
 import { generateIcons } from "./iconGeneration";
 import type { CaptureResult } from "./types";
-import type { Page } from "playwright";
+import type { Page, CDPSession } from "playwright";
 
 dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env") });
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
@@ -66,9 +67,34 @@ interface Job {
   loginTimeout?: ReturnType<typeof setTimeout>;
   snapPending?: boolean;          // throttle: true while a screenshot is being encoded
   lastSnapshot?: Buffer;          // last JPEG frame, returned while snapPending is true
+  cdpSession?: CDPSession;        // CDP session for screencast
+  wsClients?: Set<WS>;            // WebSocket clients receiving screencast frames
 }
 
 const jobs = new Map<string, Job>();
+const wss = new WebSocketServer({ noServer: true });
+
+async function startScreencast(job: Job): Promise<void> {
+  if (!job.loginPage) return;
+  const cdp = await job.loginPage.context().newCDPSession(job.loginPage);
+  job.cdpSession = cdp;
+  job.wsClients = new Set();
+  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 70, maxWidth: 1280, maxHeight: 800 });
+  cdp.on("Page.screencastFrame", async ({ data, sessionId }: { data: string; sessionId: number }) => {
+    const buf = Buffer.from(data, "base64");
+    job.lastSnapshot = buf;
+    await cdp.send("Page.screencastFrameAck", { sessionId }).catch(() => {});
+    job.wsClients?.forEach((ws) => { if (ws.readyState === WS.OPEN) ws.send(buf); });
+  });
+}
+
+async function stopScreencast(job: Job): Promise<void> {
+  await job.cdpSession?.send("Page.stopScreencast").catch(() => {});
+  job.cdpSession?.removeListener("Page.screencastFrame", () => {});
+  job.cdpSession = undefined;
+  job.wsClients?.forEach((ws) => ws.close());
+  job.wsClients = undefined;
+}
 
 function logEvent(event: string, data: Record<string, unknown> = {}): void {
   console.log(`[EVENT] ${JSON.stringify({ event, ts: new Date().toISOString(), ...data })}`);
@@ -157,6 +183,7 @@ async function processJob(job: Job): Promise<void> {
         job.status = "awaiting-login";
         job.step = `Sign in to ${host} in the browser below`;
         job.loginPage = page;
+        await startScreencast(job);
         try {
           await new Promise<void>((resolve, reject) => {
             job.loginResolver = resolve;
@@ -168,6 +195,7 @@ async function processJob(job: Job): Promise<void> {
           job.status = "capturing";
           job.step = "Resuming capture";
         } finally {
+          await stopScreencast(job);
           clearTimeout(job.loginTimeout);
           job.loginPage = undefined;
           job.loginResolver = undefined;
@@ -714,7 +742,19 @@ async function cleanupOldJobs(): Promise<void> {
 }
 setInterval(() => void cleanupOldJobs(), CLEANUP_INTERVAL_MS);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`ZipSnap worker API listening on http://localhost:${PORT}`);
   console.log(`  Anthropic key loaded: ${process.env.ANTHROPIC_API_KEY ? "yes" : "NO — set it in .env"}`);
+});
+
+server.on("upgrade", (req, socket, head) => {
+  const match = req.url?.match(/^\/api\/jobs\/([^/]+)\/browser-stream$/);
+  if (!match) { socket.destroy(); return; }
+  const job = jobs.get(match[1]);
+  if (!job || job.status !== "awaiting-login" || !job.wsClients) { socket.destroy(); return; }
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    job.wsClients!.add(ws);
+    if (job.lastSnapshot) ws.send(job.lastSnapshot);
+    ws.on("close", () => job.wsClients?.delete(ws));
+  });
 });

@@ -114,7 +114,8 @@ export default function Home() {
   const [preparing, setPreparing] = useState(false);
   const [job, setJob] = useState<JobState | null>(null);
   const [navOpen, setNavOpen] = useState(false);
-  const [snapKey, setSnapKey] = useState(0);
+  const [frameUrl, setFrameUrl] = useState<string | null>(null);
+  const prevFrameUrl = useRef<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const startedAtRef = useRef<number | null>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
@@ -124,12 +125,23 @@ export default function Home() {
   const awaitingLogin = job?.status === "awaiting-login";
 
   useEffect(() => {
-    if (!awaitingLogin) return;
-    const id = setInterval(() => setSnapKey((k) => k + 1), 300);
-    // Auto-focus the panel so keyboard events are captured immediately.
+    if (!awaitingLogin || !job) return;
     loginPanelRef.current?.focus();
-    return () => clearInterval(id);
-  }, [awaitingLogin]);
+    const wsUrl = WORKER.replace(/^http/, "ws") + `/api/jobs/${job.id}/browser-stream`;
+    const ws = new WebSocket(wsUrl);
+    ws.binaryType = "blob";
+    ws.onmessage = (e) => {
+      const url = URL.createObjectURL(e.data as Blob);
+      setFrameUrl(url);
+      if (prevFrameUrl.current) URL.revokeObjectURL(prevFrameUrl.current);
+      prevFrameUrl.current = url;
+    };
+    return () => {
+      ws.close();
+      if (prevFrameUrl.current) { URL.revokeObjectURL(prevFrameUrl.current); prevFrameUrl.current = null; }
+      setFrameUrl(null);
+    };
+  }, [awaitingLogin, job?.id]);
 
   /** Accepts a single .zip, or a folder / set of files (which we zip in-browser). */
   async function accept(opts: { zip?: File | null; entries?: { path: string; file: File }[] }) {
@@ -423,7 +435,7 @@ export default function Home() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`${WORKER}/api/jobs/${job.id}/browser-snapshot?t=${snapKey}`}
+                  src={frameUrl ?? `${WORKER}/api/jobs/${job.id}/browser-snapshot`}
                   alt="Live browser view, click to interact"
                   style={{ width: "100%", display: "block" }}
                   onClick={(e) => {
