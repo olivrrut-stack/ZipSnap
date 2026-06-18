@@ -409,8 +409,8 @@ export default function Home() {
                   Generate my kit →
                 </button>
               </div>
-              <p className="hint">No screenshots to take. No design tools. Free during beta.</p>
-              <p className="hint" style={{ marginTop: 4 }}>Your extension is processed in a private session and deleted after 24 hours.</p>
+              <p className="hint" style={{ marginTop: 32 }}>No screenshots to take. No design tools. Free during beta.</p>
+              <p className="hint" style={{ marginTop: 6 }}>Your extension is processed in a private session and deleted after 24 hours.</p>
             </>
           )}
 
