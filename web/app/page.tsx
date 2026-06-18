@@ -374,7 +374,7 @@ export default function Home() {
               </div>
 
               {picked && (
-                <div style={{ marginTop: 16 }}>
+                <div style={{ marginTop: 16, maxWidth: 560, margin: "16px auto 0" }}>
                   <p style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 500, color: "var(--text)", textAlign: "center", lineHeight: 1.4 }}>
                     Or override which page gets automatically photographed — choose your own
                   </p>
