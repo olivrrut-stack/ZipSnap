@@ -299,11 +299,11 @@ export default function Home() {
             Zip in your extension. <span className="accent">Snap out a store kit.</span>
           </h1>
           <p className="subhead">
-            Drag in your Chrome extension — a <span className="mono">.zip</span> or its folder.
+            Drag in your Chrome extension, a <span className="mono">.zip</span> or its folder.
             ZipSnap loads it in a real browser, captures every UI surface, writes an optimized
             store listing with title and keywords, checks your permissions for rejection risks,
             generates a paste-ready privacy policy, and designs branded icon files at every
-            required size — all automatically, in about 30 seconds.
+            required size. All automatically, in about 30 seconds.
           </p>
 
           {!job && (
@@ -333,7 +333,7 @@ export default function Home() {
                     <>ready to generate · <span className="mono">{(picked.blob.size / 1024).toFixed(0)} KB</span></>
                   ) : (
                     <>
-                      drop a <span className="mono">.zip</span> or a folder — or click to browse, or{" "}
+                      drop a <span className="mono">.zip</span> or a folder, or click to browse, or{" "}
                       <button
                         type="button"
                         className="link-btn"
@@ -384,7 +384,7 @@ export default function Home() {
                   <div className="bar-fill" style={{ width: `${PCT[job!.status]}%` }} />
                 </div>
                 <p className="muted-note">
-                  We&apos;re running a real browser to photograph your extension&apos;s actual UI — usually about half a minute.
+                  We&apos;re running a real browser to photograph your extension&apos;s actual UI. Usually about half a minute.
                 </p>
               </div>
             </div>
@@ -424,7 +424,7 @@ export default function Home() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`${WORKER}/api/jobs/${job.id}/browser-snapshot?t=${snapKey}`}
-                  alt="Live browser view — click to interact"
+                  alt="Live browser view, click to interact"
                   style={{ width: "100%", display: "block" }}
                   onClick={(e) => {
                     const img = e.currentTarget;
@@ -461,7 +461,7 @@ export default function Home() {
                 </button>
                 <button
                   className="btn btn-ghost"
-                  title="Reloads the page — useful if the extension didn't inject after login"
+                  title="Reloads the page if the extension did not inject after login"
                   onClick={() => void relayReload(job.id)}
                   style={{ flexShrink: 0 }}
                 >
@@ -512,9 +512,9 @@ export default function Home() {
               <div className="section-label">How it works</div>
               <h2 className="section-title">Three steps. Zero screenshots.</h2>
               <div className="steps">
-                <div className="step"><div className="step-num">1</div><h3>Drop your extension</h3><p>Drag in a .zip or your unpacked folder. ZipSnap reads its manifest to find every screen it has — popup, options, and on-page UI.</p></div>
-                <div className="step"><div className="step-num">2</div><h3>We capture it live</h3><p>It loads your extension in a real browser and photographs its actual screens — even site-specific ones, on the site they belong to.</p></div>
-                <div className="step"><div className="step-num">3</div><h3>Download the kit</h3><p>Screenshots, promo tiles, an optimized listing with title and keywords, a permissions report, a privacy policy, and branded icons — everything the Chrome Web Store needs.</p></div>
+                <div className="step"><div className="step-num">1</div><h3>Drop your extension</h3><p>Drag in a .zip or your unpacked folder. ZipSnap reads its manifest to find every screen it has: popup, options, and on-page UI.</p></div>
+                <div className="step"><div className="step-num">2</div><h3>We capture it live</h3><p>It loads your extension in a real browser and photographs its actual screens, even site-specific ones, on the site they belong to.</p></div>
+                <div className="step"><div className="step-num">3</div><h3>Download the kit</h3><p>Screenshots, promo tiles, an optimized listing with title and keywords, a permissions report, a privacy policy, and branded icons. Everything the Chrome Web Store needs.</p></div>
               </div>
             </section>
 
@@ -544,7 +544,7 @@ export default function Home() {
                 </div>
                 <div className="faq-item">
                   <div className="faq-q">What file formats work?</div>
-                  <div className="faq-a">A <span className="mono">.zip</span> or an unpacked extension folder. Either works — drop it straight in.</div>
+                  <div className="faq-a">A <span className="mono">.zip</span> or an unpacked extension folder. Either works. Drop it straight in.</div>
                 </div>
                 <div className="faq-item">
                   <div className="faq-q">How long does it take?</div>
@@ -556,7 +556,7 @@ export default function Home() {
                 </div>
                 <div className="faq-item">
                   <div className="faq-q">Is it really free?</div>
-                  <div className="faq-a">Yes, free during beta. No account needed — drop your extension and go.</div>
+                  <div className="faq-a">Yes, free during beta. No account needed. Drop your extension and go.</div>
                 </div>
               </div>
             </section>
@@ -610,7 +610,7 @@ function Results({
       setAccentColor(pickerColor);
       setRenderKey((k) => k + 1);
     } catch {
-      setRerenderError("Re-render failed — please try again.");
+      setRerenderError("Re-render failed. Please try again.");
     } finally {
       setRerendering(false);
     }
@@ -631,7 +631,7 @@ function Results({
       const data = await res.json() as { copy: Copy };
       setCopy(data.copy);
     } catch {
-      setRecopyError("Regeneration failed — please try again.");
+      setRecopyError("Regeneration failed. Please try again.");
     } finally {
       setRecopying(false);
     }
@@ -649,7 +649,7 @@ function Results({
       if (!res.ok) throw new Error("Failed to subscribe.");
       setEmailSent(true);
     } catch {
-      setEmailError("Something went wrong — please try again.");
+      setEmailError("Something went wrong. Please try again.");
     }
   }
 
@@ -666,7 +666,7 @@ function Results({
           letterSpacing: "-0.02em",
           lineHeight: 1.2,
         }}>
-          {job.extensionName ?? "Your kit"} — ready
+          {job.extensionName ?? "Your kit"} · ready
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
           <a
@@ -957,7 +957,7 @@ function Results({
           <p className="email-sent">You&apos;re in. We&apos;ll let you know when paid tiers launch.</p>
         ) : (
           <form className="email-form" onSubmit={submitEmail}>
-            <p className="email-label">Stay in the loop — get notified when we launch.</p>
+            <p className="email-label">Stay in the loop. Get notified when we launch.</p>
             <div className="email-row">
               <input
                 type="email"
