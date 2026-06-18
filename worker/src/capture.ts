@@ -1,4 +1,5 @@
 import path from "node:path";
+import { writeFile } from "node:fs/promises";
 import type { BrowserContext, Page } from "playwright";
 import type { CapturedSurface } from "./types";
 import { startDemoServer } from "./demoServer";
@@ -7,6 +8,25 @@ import { ok, info, warn } from "./log";
 
 /** The size of the simulated browser window for full-page surfaces. */
 const VIEWPORT = { width: 1280, height: 800 };
+
+/**
+ * Takes a screenshot, falling back to a raw CDP capture if Playwright's
+ * high-level screenshot hangs (common on heavy SPAs like LinkedIn that never
+ * reach an idle paint state).
+ */
+async function forceScreenshot(page: Page, outputPath: string): Promise<void> {
+  try {
+    await page.screenshot({ path: outputPath, animations: "disabled", timeout: 8_000 });
+  } catch {
+    const cdp = await page.context().newCDPSession(page);
+    try {
+      const { data } = await cdp.send("Page.captureScreenshot", { format: "png" }) as { data: string };
+      await writeFile(outputPath, Buffer.from(data, "base64"));
+    } finally {
+      await cdp.detach().catch(() => {});
+    }
+  }
+}
 
 /**
  * Returns true if the page looks like a login wall — either by having a
@@ -43,7 +63,7 @@ export async function capturePopup(
     const body = page.locator("body");
     const box = await body.boundingBox();
     const file = "popup.png";
-    await body.screenshot({ path: path.join(outputDir, file) });
+    await forceScreenshot(page, path.join(outputDir, file));
     const size = box
       ? { width: Math.round(box.width), height: Math.round(box.height) }
       : null;
@@ -74,7 +94,7 @@ export async function captureOptions(
     await page.goto(url, { waitUntil: "load" });
     await page.waitForTimeout(400);
     const file = "options.png";
-    await page.screenshot({ path: path.join(outputDir, file) });
+    await forceScreenshot(page, path.join(outputDir, file));
     ok(`Options captured (${VIEWPORT.width}x${VIEWPORT.height}) -> ${file}`);
     return {
       exists: true,
@@ -189,7 +209,7 @@ export async function captureContentOverlay(
     }
 
     const file = "content-overlay.png";
-    await page.screenshot({ path: path.join(outputDir, file), animations: "disabled", timeout: 15_000 });
+    await forceScreenshot(page, path.join(outputDir, file));
     ok(`Content overlay captured (${VIEWPORT.width}x${VIEWPORT.height}) -> ${file}`);
     return { exists: true, source: url, screenshot: file, size: { ...VIEWPORT }, note };
   } finally {
