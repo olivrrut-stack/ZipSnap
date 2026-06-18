@@ -203,13 +203,12 @@ export async function captureContentOverlay(
       if (looksLikeLoginPage(currentUrl, hasPasswordField, hasEmailOnlyForm)) {
         info("Login wall detected — pausing for user sign-in");
         await opts.onLoginNeeded(page, currentUrl);
-        // After login, navigate back to the original target URL. The login flow
-        // typically redirects to a dashboard/feed which is a different heavy page,
-        // not the page the extension is meant to run on.
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        // After login, navigate back to the original target URL. Use "commit" so
+        // heavy SPAs like LinkedIn can't stall us waiting for HTML to finish parsing.
+        await page.goto(url, { waitUntil: "commit", timeout: 15_000 });
         await dismissConsent(page);
-        // Give the extension time to inject on the freshly loaded page.
-        await page.waitForTimeout(3000);
+        // Give the page and extension time to settle after navigation.
+        await page.waitForTimeout(5000);
       }
     }
 

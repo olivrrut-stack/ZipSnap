@@ -2,6 +2,10 @@
 
 ZipSnap auto-generates a Chrome Web Store submission kit from an unpacked extension: screenshots, promo tiles, and AI-written store copy. The headline feature is **auto-capture** — ZipSnap loads the extension itself and screenshots its own UI.
 
+## Communication style
+
+When explaining things, always use plain language — no technical jargon. If a technical term is unavoidable, give a one-sentence plain-English definition right after it.
+
 ## Layout
 
 Two independent npm projects (separate `package.json`, `tsconfig.json`, `vitest.config`):

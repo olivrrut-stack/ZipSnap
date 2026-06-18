@@ -94,7 +94,10 @@ async function stopScreencast(job: Job): Promise<void> {
       job.cdpSession.send("Page.stopScreencast"),
       new Promise<void>((r) => setTimeout(r, 5_000)),
     ]).catch(() => {});
-    await job.cdpSession.detach().catch(() => {});
+    await Promise.race([
+      job.cdpSession.detach(),
+      new Promise<void>((r) => setTimeout(r, 3_000)),
+    ]).catch(() => {});
     job.cdpSession = undefined;
   }
   job.wsClients?.forEach((ws) => ws.close());
