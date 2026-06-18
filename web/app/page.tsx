@@ -266,13 +266,14 @@ export default function Home() {
   }
 
   const working = job && job.status !== "done" && job.status !== "error" && job.status !== "awaiting-login";
+  const jobRunning = job && job.status !== "done" && job.status !== "error";
 
   useEffect(() => {
-    if (!working) { startedAtRef.current = null; setElapsed(0); return; }
+    if (!jobRunning) { startedAtRef.current = null; setElapsed(0); return; }
     if (startedAtRef.current === null) startedAtRef.current = Date.now();
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAtRef.current!) / 1000)), 1000);
     return () => clearInterval(id);
-  }, [working]);
+  }, [jobRunning]);
 
   return (
     <main>
@@ -498,6 +499,9 @@ export default function Home() {
             <div className="panel">
               <div className="error-box">{job.error ?? "Something went wrong."}</div>
               <div className="cta-row" style={{ marginTop: 16 }}>
+                {picked && (
+                  <button className="btn btn-primary" onClick={generate}>Try again</button>
+                )}
                 <button className="btn btn-ghost" onClick={reset}>Try another extension</button>
               </div>
             </div>
