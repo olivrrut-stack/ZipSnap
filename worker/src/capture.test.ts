@@ -43,4 +43,32 @@ describe("looksLikeLoginPage", () => {
   it("returns false for root URL with no signals at all", () => {
     expect(looksLikeLoginPage("https://github.com/", false, false)).toBe(false);
   });
+
+  it("returns true for /2fa in URL", () => {
+    expect(looksLikeLoginPage("https://example.com/2fa", false)).toBe(true);
+  });
+
+  it("returns true for /two-factor in URL", () => {
+    expect(looksLikeLoginPage("https://example.com/two-factor/verify", false)).toBe(true);
+  });
+
+  it("returns true for /verify in URL", () => {
+    expect(looksLikeLoginPage("https://example.com/verify", false)).toBe(true);
+  });
+
+  it("returns true for /otp in URL", () => {
+    expect(looksLikeLoginPage("https://example.com/otp", false)).toBe(true);
+  });
+
+  it("returns true for /mfa in URL", () => {
+    expect(looksLikeLoginPage("https://example.com/settings/mfa", false)).toBe(true);
+  });
+
+  it("returns true for /checkpoint in URL", () => {
+    expect(looksLikeLoginPage("https://www.linkedin.com/checkpoint/challenge", false)).toBe(true);
+  });
+
+  it("returns true for /challenge in URL", () => {
+    expect(looksLikeLoginPage("https://auth.example.com/challenge/verify", false)).toBe(true);
+  });
 });

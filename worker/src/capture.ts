@@ -35,7 +35,7 @@ async function forceScreenshot(page: Page, outputPath: string): Promise<void> {
 
 /**
  * Returns true if the page looks like a login wall — either by having a
- * password input or by matching common login URL patterns.
+ * password input or by matching common login/auth URL patterns.
  */
 export function looksLikeLoginPage(
   url: string,
@@ -43,8 +43,45 @@ export function looksLikeLoginPage(
   hasEmailOnlyForm = false,
 ): boolean {
   if (hasPasswordField) return true;
-  if (/\/(login|signin|sign-in|auth|session|account\/login)/i.test(url)) return true;
+  if (/\/(login|signin|sign-in|auth|session|account\/login|2fa|two-factor|verify|otp|mfa|checkpoint|challenge)/i.test(url)) return true;
   return hasEmailOnlyForm;
+}
+
+/**
+ * Checks whether the current page is any kind of authentication wall:
+ * login form, 2FA/OTP step, bot-verification challenge, or email-entry form.
+ * Used both for initial detection and for the post-login safety check.
+ */
+async function detectAuthSignals(page: Page): Promise<boolean> {
+  // URL-pattern fast path covers most dedicated auth pages (login, 2FA, verify…)
+  if (looksLikeLoginPage(page.url(), false)) return true;
+
+  return page.evaluate(() => {
+    if (document.querySelector('input[type="password"]')) return true;
+
+    // OTP / 2FA inputs are always auth-context
+    if (document.querySelector(
+      'input[autocomplete="one-time-code"], input[autocomplete*="one-time-code"]',
+    )) return true;
+    const numericInputs = Array.from(document.querySelectorAll('input[inputmode="numeric"]'));
+    if (numericInputs.some((el) => { const ml = (el as HTMLInputElement).maxLength; return ml >= 4 && ml <= 8; })) return true;
+
+    // Bot / CAPTCHA challenges
+    if (document.querySelector(
+      'iframe[src*="challenges.cloudflare.com"], iframe[src*="hcaptcha.com"], ' +
+      'iframe[src*="recaptcha.net"], iframe[src*="recaptcha.google.com"], ' +
+      '#challenge-form, #cf-challenge-running, .cf-browser-verification',
+    )) return true;
+    if (/verify (you are|you'?re) (human|not a robot)/i.test(document.body?.innerText ?? "")) return true;
+
+    // Email-entry form with a sign-in / log-in call-to-action
+    const hasEmailInput = !!document.querySelector(
+      'input[type="email"], input[name*="email"], input[id*="email"]',
+    );
+    const hasSignInCta = Array.from(document.querySelectorAll('button, [role="button"], a'))
+      .some((el) => /^(sign\s*in|log\s*in)$/i.test((el.textContent ?? "").trim()));
+    return hasEmailInput && hasSignInCta;
+  });
 }
 
 /**
@@ -197,22 +234,11 @@ export async function captureContentOverlay(
       await page.waitForTimeout(1500);
     }
 
-    // Detect login wall on real-site targets only.
+    // Detect any auth wall on real-site targets only.
     if (isRealSite && opts.onLoginNeeded) {
-      const currentUrl = page.url();
-      const { hasPasswordField, hasEmailOnlyForm } = await page.evaluate(() => {
-        const hasPasswordField = !!document.querySelector('input[type="password"]');
-        const hasEmailInput = !!document.querySelector(
-          'input[type="email"], input[name*="email"], input[id*="email"]',
-        );
-        const hasSignInCta = Array.from(
-          document.querySelectorAll('button, [role="button"], a'),
-        ).some((el) => /^(sign\s*in|log\s*in)$/i.test((el.textContent ?? "").trim()));
-        return { hasPasswordField, hasEmailOnlyForm: hasEmailInput && hasSignInCta };
-      });
-      if (looksLikeLoginPage(currentUrl, hasPasswordField, hasEmailOnlyForm)) {
+      if (await detectAuthSignals(page)) {
         info("Login wall detected — pausing for user sign-in");
-        await opts.onLoginNeeded(page, currentUrl);
+        await opts.onLoginNeeded(page, page.url());
         // After login the browser is on the post-auth page (e.g. LinkedIn feed).
         // Don't navigate back to `url` — it may be a /login path, and the server
         // will abort a second visit to it from an authenticated session. If we're
@@ -230,8 +256,16 @@ export async function captureContentOverlay(
           await page.goto(destUrl, { waitUntil: "commit", timeout: 15_000 });
         }
         await dismissConsent(page);
-        // Give the page and extension time to settle.
+        // Give the page and extension time to settle after login.
         await page.waitForTimeout(5000);
+        // Multi-step login guard: if we're still on an auth page (2FA, email
+        // verification, bot challenge, etc.), re-show the browser so the user
+        // can finish the remaining steps. Repeats until the page is clear.
+        while (await detectAuthSignals(page)) {
+          info("Still on an auth page — re-pausing for remaining login steps");
+          await opts.onLoginNeeded(page, page.url());
+          await page.waitForTimeout(3000);
+        }
       }
     }
 
