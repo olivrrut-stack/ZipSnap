@@ -113,6 +113,7 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [job, setJob] = useState<JobState | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState("");
   const [navOpen, setNavOpen] = useState(false);
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const prevFrameUrl = useRef<string | null>(null);
@@ -197,6 +198,7 @@ export default function Home() {
     try {
       const form = new FormData();
       form.append("extension", picked.blob, picked.name);
+      if (screenshotUrl.trim()) form.append("customContentUrl", screenshotUrl.trim());
       const res = await fetch(`${WORKER}/api/jobs`, { method: "POST", body: form });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Upload failed.");
       const { jobId } = await res.json();
@@ -218,6 +220,7 @@ export default function Home() {
   function reset() {
     setJob(null);
     setPicked(null);
+    setScreenshotUrl("");
   }
 
   async function relayClick(jobId: string, xFrac: number, yFrac: number) {
@@ -369,6 +372,30 @@ export default function Home() {
                   {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
                 />
               </div>
+
+              {picked && (
+                <div style={{ marginTop: 12 }}>
+                  <label htmlFor="screenshot-url" style={{ display: "block", fontSize: 13, color: "var(--text-faint)", marginBottom: 4 }}>
+                    Custom screenshot URL <span style={{ opacity: 0.6 }}>(optional)</span>
+                  </label>
+                  <input
+                    id="screenshot-url"
+                    type="url"
+                    value={screenshotUrl}
+                    onChange={(e) => setScreenshotUrl(e.target.value)}
+                    placeholder="https://example.com/page-with-your-extension"
+                    style={{
+                      width: "100%", boxSizing: "border-box",
+                      background: "var(--surface)", border: "1px solid var(--border)",
+                      borderRadius: 6, padding: "7px 10px", fontSize: 13,
+                      color: "var(--text)", outline: "none",
+                    }}
+                  />
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-faint)" }}>
+                    Override which page gets photographed for the content script screenshot.
+                  </p>
+                </div>
+              )}
 
               <div className="cta-row">
                 <button className="btn btn-primary" disabled={!picked || preparing} onClick={generate}>

@@ -61,6 +61,7 @@ interface Job {
   copy?: StoreCopy;
   iconsDir?: string;
   iconFiles?: string[];
+  customContentUrl?: string;
   rerendering?: boolean;
   loginPage?: Page;               // live Playwright page held during awaiting-login
   loginResolver?: () => void;     // resolves the pause promise when user clicks Done
@@ -186,6 +187,7 @@ async function processJob(job: Job): Promise<void> {
     logEvent("job_started", { jobId: job.id });
     job.status = "capturing";
     const capture = await runCapture(job.extPath, job.outputDir, (s) => (job.step = s), {
+      customContentUrl: job.customContentUrl,
       onLoginNeeded: async (page, url) => {
         const host = (() => { try { return new URL(url).host; } catch { return url; } })();
         job.status = "awaiting-login";
@@ -392,6 +394,18 @@ app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, 
       return;
     }
 
+    const rawUrl = typeof req.body?.customContentUrl === "string" ? req.body.customContentUrl.trim() : "";
+    let customContentUrl: string | undefined;
+    if (rawUrl) {
+      try {
+        new URL(rawUrl);
+        customContentUrl = rawUrl;
+      } catch {
+        res.status(400).json({ error: "customContentUrl is not a valid URL." });
+        return;
+      }
+    }
+
     const job: Job = {
       id,
       status: "queued",
@@ -400,6 +414,7 @@ app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, 
       extPath,
       outputDir: path.join(dir, "output"),
       images: [],
+      customContentUrl,
     };
     jobs.set(id, job);
     pendingQueue.push(job); // wait for a free slot; client polls for status

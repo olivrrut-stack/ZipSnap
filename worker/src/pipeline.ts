@@ -39,6 +39,8 @@ export interface RunCaptureOptions {
    * The returned promise should resolve once the user has signed in.
    */
   onLoginNeeded?: (page: Page, url: string) => Promise<void>;
+  /** Override the URL visited for the content-script screenshot. */
+  customContentUrl?: string;
 }
 
 /**
@@ -119,6 +121,7 @@ export async function runCapture(
     const options = await captureOptions(loaded.context, extensionId, surfaces.optionsPage, outputDir);
     const contentOverlay = await captureContentOverlay(loaded.context, manifest, outputDir, {
       onLoginNeeded: opts.onLoginNeeded,
+      customContentUrl: opts.customContentUrl,
     });
 
     const result: CaptureResult = {

@@ -6,6 +6,8 @@ ZipSnap auto-generates a Chrome Web Store submission kit from an unpacked extens
 
 When explaining things, always use plain language — no technical jargon. If a technical term is unavoidable, give a one-sentence plain-English definition right after it.
 
+After every significant code change, explain what changed to the user in simple, plain-English terms — no jargon, no technical detail unless asked.
+
 ## Layout
 
 Two independent npm projects (separate `package.json`, `tsconfig.json`, `vitest.config`):
@@ -58,41 +60,76 @@ ANTHROPIC_API_KEY=sk-ant-...
 Core flow: **capture → AI copy → render**, via `runCapture`/`runRender` in `pipeline.ts`, shared by CLI and HTTP server.
 
 **1. Capture** (`runCapture`)
-- `manifest.ts` — reads `manifest.json`, extracts metadata (`extractMeta`), detects surfaces (`detectSurfaces`): popup, options, content scripts.
-- `extensionContext.ts` — launches persistent Chrome with the extension loaded, resolves extension ID via background service worker.
+- `manifest.ts` — reads `manifest.json`, extracts metadata (`extractMeta`), detects surfaces (`detectSurfaces`): popup, options, content scripts. `checkManifestHealth` returns warnings/errors the UI surfaces.
+- `extensionContext.ts` — launches persistent Chrome with the extension loaded, resolves extension ID via background service worker. Extensions without a service worker get a stub injected via `withServiceWorker`.
 - `brandColor.ts` — extracts dominant brand color from the 128px icon.
-- `capture.ts` — screenshots each surface: `capturePopup` (tight crop), `captureOptions` (1280×800), `captureContentOverlay`.
-- `contentTarget.ts` (`resolveContentTarget`) — for content scripts, uses the local demo page (`demoServer.ts`) for broad patterns (`<all_urls>`, `*` host), or visits the real site for specific patterns (with `LANDING_HINTS` for login-walled sites like YouTube).
+- `capture.ts` — screenshots each surface: `capturePopup` (tight crop), `captureOptions` (1280×800), `captureContentOverlay`. All screenshots go through `forceScreenshot`, which tries Playwright first (8s timeout) then falls back to a raw CDP `Page.captureScreenshot` call (10s timeout) — needed for heavy SPAs like LinkedIn that never reach Playwright's idle-paint state.
+- `contentTarget.ts` (`resolveContentTarget`) — for content scripts, uses the local demo page (`demoServer.ts`) for broad patterns (`<all_urls>`, `*` host), or visits the real site for specific patterns. `LANDING_HINTS` maps known sites to content-rich or login-walled entry URLs (e.g. `linkedin.com` → `/login`) so login detection fires correctly.
+- Login wall detection: if `captureContentOverlay` lands on a login page (password field, login URL pattern), it calls `opts.onLoginNeeded`. The server uses this to pause the job, stream the live browser to the user via WebSocket, and wait for the user to sign in. After login, if the browser is already on the target domain, navigation is skipped — the extension is already running on the post-login page. Only navigates to the domain root if somehow on a different domain.
 - Output: `capture.json` (`CaptureResult`, `ExtensionMeta`, `DetectedSurfaces`, `CapturedSurface` from `types.ts`).
-- `--login` pauses for sign-in; ignored when `ZIPSNAP_HEADLESS=1`.
 
 **2. AI copy** (`copy.ts` / `generateStoreCopy`)
-- Sends `capture.json` to Claude → `StoreCopy`: short/long description, category, 5 screenshot headlines → `copy.json`.
+- Sends `capture.json` to Claude → `StoreCopy`: title, short/long description, category, 5 screenshot headlines, 7 keywords, permissions analysis with flagged risks and listing justifications, privacy policy → `copy.json`.
 
 **3. Render** (`runRender`, using `render.ts`)
-- `makeBrand` derives palette from `brandColor`. Pipeline: Satori → SVG → resvg-js → PNG. Typeface: Geist Mono.
+- `makeBrand` derives palette from `brandColor` (or a user-supplied override color). Pipeline: Satori → SVG → resvg-js → PNG. Typeface: Geist Mono.
 - Output in `output/kit/`: `screenshot-1..5.png` (1280×800), `small-promo-440x280.png`, `marquee-1400x560.png`.
 - `pngSize`/`saveVerified` assert exact Chrome Web Store pixel sizes before writing.
+
+**4. Icon generation** (`iconGeneration.ts` / `generateIcons`)
+- Generates branded extension icons at 128/48/32/16px using the extension name, description, and brand color. Output in `output/icons/`. Best-effort — failure doesn't fail the job.
 
 ## Architecture: HTTP API (`worker/src/server.ts`)
 
 Stateless job model; client polls for status.
 
-- `POST /api/jobs` — accepts `.zip` (multer, in-memory), extracts to temp folder, locates `manifest.json` (`findManifestDir`), runs `processJob` in background. Status: `queued → capturing → writing → rendering → packaging → done/error`.
-- `processJob` — runs `runCapture → generateStoreCopy → runRender`, then zips `kit/` + `descriptions.txt` into `zipsnap-kit.zip`.
-- `GET /api/jobs/:id` — poll status/step/error; returns image list and `copy` when done.
-- `GET /api/jobs/:id/image/:name` — serve a preview image.
+**Job lifecycle:** `queued → capturing → awaiting-login (optional) → writing → rendering → packaging → done/error`
+
+**Core endpoints:**
+- `POST /api/jobs` — accepts `.zip` (multer, 25 MB limit, in-memory), runs zip-bomb guard (`inspectZip`), extracts to temp folder, locates `manifest.json` (`findManifestDir`), enqueues job. Returns `{ jobId }`.
+- `processJob` — runs `runCapture → generateStoreCopy → runRender → generateIcons`, then zips `kit/` + `icons/` + `descriptions.txt` into `zipsnap-kit.zip`.
+- `GET /api/jobs/:id` — poll status/step/error; returns `images`, `copy`, `manifestHealth`, `brandColor`, `iconKit` when done.
+- `GET /api/jobs/:id/image/:name` — serve a rendered kit image preview.
+- `GET /api/jobs/:id/icon/:name` — serve a generated icon preview.
 - `GET /api/jobs/:id/kit` — download the finished kit zip.
+- `POST /api/jobs/:id/rerender` — re-render the kit with a new brand color; returns updated image list.
+- `POST /api/jobs/:id/recopy` — re-run AI copy generation for a finished job; returns new copy.
+- `POST /api/subscribe` — log an email subscriber to Railway stdout as `[SUBSCRIBER]` JSON.
+
+**Browser interaction endpoints** (all rate-limited, only valid during `awaiting-login`):
+- `GET /api/jobs/:id/browser-snapshot` — single JPEG screenshot of the live browser (HTTP fallback for first frame).
+- `WS /api/jobs/:id/browser-stream` — WebSocket that pushes JPEG frames via CDP `Page.startScreencast` (~50ms latency). Frames stop when login completes or times out.
+- `POST /api/jobs/:id/browser-click` — relay a click at fractional coordinates `{ xFrac, yFrac }`.
+- `POST /api/jobs/:id/browser-type` — relay a keystroke `{ text }` (supports "Backspace", "Enter", or a single character).
+- `POST /api/jobs/:id/browser-scroll` — relay a scroll `{ deltaY }`.
+- `POST /api/jobs/:id/browser-back` — navigate the browser back one step.
+- `POST /api/jobs/:id/browser-reload` — reload the browser page.
+- `POST /api/jobs/:id/login-done` — signal login complete; resumes the paused capture.
+
+**Screencast internals:** `startScreencast` opens a CDP session on the login page and calls `Page.startScreencast`. Each frame is acknowledged and pushed as a JPEG buffer to all connected WebSocket clients. `stopScreencast` races `Page.stopScreencast` and `cdp.detach()` each against short timeouts (5s / 3s) so a navigated/dead CDP session can't hang the pipeline.
+
+**Infrastructure:**
+- Concurrency: `MAX_CONCURRENT_JOBS` (default 2, env-configurable). Extra jobs queue in memory up to `MAX_PENDING_JOBS` (50), then return 503.
+- Rate limiting: job creation (10/hour), rerender (5/min), recopy (3/min), browser interaction (300/min).
+- Zip-bomb guard: rejects zips with >5000 entries, >250 MB uncompressed, or >200× compression ratio.
+- Analytics: `logEvent` emits `[EVENT]` JSON lines to stdout at `job_created`, `job_started`, `job_capture_done`, `job_done`, `job_error`, `job_recopy`.
 - Jobs live in `os.tmpdir()/zipsnap-jobs/<id>`, purged after 24h by `cleanupOldJobs`.
-- Server forces `ZIPSNAP_HEADLESS=1`; `--login` is never enabled server-side.
+- Server forces `ZIPSNAP_HEADLESS=1`; login panel is server-side only.
 
 ## Architecture: web app (`web/app/`)
 
-- `page.tsx` — upload/progress/preview UI: drop zip/folder, upload, poll status, show images + AI copy, copy-to-clipboard, kit download.
+- `page.tsx` — main UI. Upload (drop zip/folder or click to browse), poll status with 2s interval, show progress bar + elapsed timer, login panel with live browser view during `awaiting-login`, results panel with image grid, AI copy blocks, brand color picker (swatches + hex input), "Apply" re-render, "Regenerate copy", email capture form, kit download, "Generate another" / "Try again" buttons.
 - `lib/utils.ts` — `sizeOf` (filename → Chrome Web Store dimensions) and `deriveName` (names zip from dropped folder).
-- `components/` — `Footer.tsx`, `LegalNav.tsx`.
+- `components/Gallery.tsx` — animated ticker showcasing sample output tiles.
+- `components/Footer.tsx`, `LegalNav.tsx`.
 - `layout.tsx`, `robots.ts`, `sitemap.ts` — Open Graph, Twitter cards, sitemap, JSON-LD.
+
+**Key UI behaviors:**
+- Elapsed timer runs for the full job duration including `awaiting-login` pause.
+- During `awaiting-login`: WebSocket connects to `browser-stream`, frames are displayed as blob URLs (revoked on each new frame). Falls back to the HTTP snapshot endpoint until the first WS frame arrives.
+- On error: shows "Try again" (re-runs same extension) and "Try another extension" (clears state).
+- Color picker: 24 preset swatches + free hex input. "Apply" calls `rerender`; images fade to 40% opacity with a spinner while re-rendering.
 
 ## Testing
 
-Vitest unit tests (no browser needed): manifest parsing, content-target resolution, AI copy schema, PNG-size verification (`worker/src/`), file-naming/sizing helpers, component tests (`web/app/`).
+Vitest unit tests (no browser needed): manifest parsing, content-target resolution, AI copy schema, PNG-size verification (`worker/src/`), file-naming/sizing helpers, component tests (`web/app/`). 47 worker tests, 13 web tests.

@@ -145,33 +145,43 @@ export async function captureContentOverlay(
   context: BrowserContext,
   manifest: any,
   outputDir: string,
-  opts: { onLoginNeeded?: (page: Page, url: string) => Promise<void> } = {},
+  opts: { onLoginNeeded?: (page: Page, url: string) => Promise<void>; customContentUrl?: string } = {},
 ): Promise<CapturedSurface> {
-  const target = resolveContentTarget(manifest);
-  if (!target) {
-    return {
-      exists: false,
-      source: null,
-      screenshot: null,
-      size: null,
-      note: "No content scripts declared.",
-    };
-  }
-
   // Resolve the URL to visit (spinning up the demo server only if needed).
   let url: string;
   let note: string;
   let closeDemo: (() => Promise<void>) | null = null;
-  if (target.kind === "site") {
-    url = target.url;
-    note = `Shot on the real target site (matched "${target.matchUsed}").`;
-    info(`Content script targets a specific site — visiting ${url}`);
+  let isRealSite: boolean;
+
+  if (opts.customContentUrl) {
+    url = opts.customContentUrl;
+    note = "Shot on user-specified URL.";
+    isRealSite = true;
+    info(`Content script: using custom URL ${url}`);
   } else {
-    const demo = await startDemoServer();
-    closeDemo = demo.close;
-    url = demo.url;
-    note = "Shot on the safe local demo page (extension matches any site).";
-    info(`Serving demo page at ${url}`);
+    const target = resolveContentTarget(manifest);
+    if (!target) {
+      return {
+        exists: false,
+        source: null,
+        screenshot: null,
+        size: null,
+        note: "No content scripts declared.",
+      };
+    }
+    if (target.kind === "site") {
+      url = target.url;
+      note = `Shot on the real target site (matched "${target.matchUsed}").`;
+      isRealSite = true;
+      info(`Content script targets a specific site — visiting ${url}`);
+    } else {
+      const demo = await startDemoServer();
+      closeDemo = demo.close;
+      url = demo.url;
+      note = "Shot on the safe local demo page (extension matches any site).";
+      isRealSite = false;
+      info(`Serving demo page at ${url}`);
+    }
   }
 
   const page = await context.newPage();
@@ -179,7 +189,7 @@ export async function captureContentOverlay(
     await page.setViewportSize(VIEWPORT);
     // Real sites can keep loading forever, so don't wait for full network idle.
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    if (target.kind === "site") {
+    if (isRealSite) {
       await dismissConsent(page);
       // Real sites render progressively; give the page and the extension time.
       await page.waitForTimeout(4000);
@@ -188,7 +198,7 @@ export async function captureContentOverlay(
     }
 
     // Detect login wall on real-site targets only.
-    if (target.kind === "site" && opts.onLoginNeeded) {
+    if (isRealSite && opts.onLoginNeeded) {
       const currentUrl = page.url();
       const { hasPasswordField, hasEmailOnlyForm } = await page.evaluate(() => {
         const hasPasswordField = !!document.querySelector('input[type="password"]');
