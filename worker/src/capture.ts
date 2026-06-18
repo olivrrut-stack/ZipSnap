@@ -178,13 +178,18 @@ export async function captureContentOverlay(
       if (looksLikeLoginPage(currentUrl, hasPasswordField, hasEmailOnlyForm)) {
         info("Login wall detected — pausing for user sign-in");
         await opts.onLoginNeeded(page, currentUrl);
-        // Give the content script time to inject after the post-login navigation.
-        await page.waitForTimeout(2000);
+        // After login, navigate back to the original target URL. The login flow
+        // typically redirects to a dashboard/feed which is a different heavy page,
+        // not the page the extension is meant to run on.
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        await dismissConsent(page);
+        // Give the extension time to inject on the freshly loaded page.
+        await page.waitForTimeout(3000);
       }
     }
 
     const file = "content-overlay.png";
-    await page.screenshot({ path: path.join(outputDir, file) });
+    await page.screenshot({ path: path.join(outputDir, file), animations: "disabled", timeout: 15_000 });
     ok(`Content overlay captured (${VIEWPORT.width}x${VIEWPORT.height}) -> ${file}`);
     return { exists: true, source: url, screenshot: file, size: { ...VIEWPORT }, note };
   } finally {
