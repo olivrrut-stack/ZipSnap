@@ -718,25 +718,24 @@ function Results({
         }}>
           {job.extensionName ?? "Your kit"} · ready
         </div>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <a
             className="btn btn-primary"
             href={`${WORKER}/api/jobs/${job.id}/kit`}
             target="_blank"
             rel="noreferrer"
-            style={{ flex: 1, textAlign: "center", boxSizing: "border-box" }}
+            style={{ textAlign: "center", boxSizing: "border-box", display: "block" }}
           >
             Download kit (.zip)
           </a>
           <div style={{
-            background: "var(--surface-2, #1e2030)",
-            border: "1px solid var(--border, #2e3050)",
+            background: "var(--panel)",
+            border: "1px solid var(--line)",
             borderRadius: 10,
             padding: 12,
             display: "flex",
             flexDirection: "column",
             gap: 8,
-            width: 188,
           }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 4 }}>
               {SWATCHES.map((c) => (
@@ -770,9 +769,9 @@ function Results({
                 fontSize: 12,
                 padding: "4px 8px",
                 borderRadius: 6,
-                border: "1px solid var(--border, #2e3050)",
-                background: "var(--surface-1, #161720)",
-                color: "var(--text, #e2e8f0)",
+                border: "1px solid var(--line)",
+                background: "var(--bg-soft)",
+                color: "var(--text)",
                 width: "100%",
                 boxSizing: "border-box",
               }}

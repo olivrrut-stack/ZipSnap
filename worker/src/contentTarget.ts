@@ -57,6 +57,8 @@ const LANDING_HINTS: Record<string, string> = {
   "www.reddit.com": "login",
   "instagram.com": "accounts/login",
   "www.instagram.com": "accounts/login",
+  "claude.ai": "login",
+  "www.claude.ai": "login",
 };
 
 /** Turns a specific match pattern into a concrete, visitable URL. */
