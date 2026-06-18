@@ -46,6 +46,7 @@ interface JobState {
   status: Status;
   step: string;
   error?: string;
+  errorCode?: string;
   extensionName?: string;
   brandColor?: string;
   images: string[];
@@ -53,6 +54,16 @@ interface JobState {
   manifestHealth?: { issues: ManifestIssue[] };
   iconKit?: { files: string[] };
 }
+
+const ERROR_GUIDANCE: Record<string, string> = {
+  "login-timeout": "You didn't complete sign-in within 5 minutes. Try again and sign in as quickly as possible, or paste a URL in the custom page field that doesn't need login.",
+  "bot-detection": "The site's security kept blocking ZipSnap's browser even after sign-in. Try email/password login instead of Google/Apple, or paste a specific page URL in the custom page field.",
+  "capture-timeout": "The page took too long to load. The site may be slow or down. Try again in a moment, or use the custom page field to point at a faster URL.",
+  "ai-refusal": "The AI declined to write copy for this extension. Try regenerating the copy.",
+  "ai-failure": "The AI response came back in an unexpected format. Try again.",
+  "navigation-failed": "ZipSnap couldn't reach the site. Check your connection or try a different URL in the custom page field.",
+  "manifest-missing": "No manifest.json was found in the zip. Make sure it's an unpacked Chrome extension.",
+};
 
 const PCT: Record<Status, number> = {
   queued: 8, capturing: 32, "awaiting-login": 35, writing: 60, rendering: 82, packaging: 93, done: 100, error: 100,
@@ -207,7 +218,7 @@ export default function Home() {
         const s = await fetch(`${WORKER}/api/jobs/${jobId}`).then((r) => r.json());
         setJob({
           id: jobId, status: s.status, step: s.step ?? STEP_LABEL[s.status as Status] ?? "",
-          error: s.error, extensionName: s.extensionName, brandColor: s.brandColor,
+          error: s.error, errorCode: s.errorCode, extensionName: s.extensionName, brandColor: s.brandColor,
           images: s.images ?? [], copy: s.copy, manifestHealth: s.manifestHealth, iconKit: s.iconKit,
         });
         if (s.status === "done" || s.status === "error") break;
@@ -221,6 +232,31 @@ export default function Home() {
     setJob(null);
     setPicked(null);
     setScreenshotUrl("");
+  }
+
+  async function recapture() {
+    if (!job) return;
+    const res = await fetch(`${WORKER}/api/jobs/${job.id}/recapture`, { method: "POST" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setJob((prev) => prev ? { ...prev, status: "error", error: data.error ?? "Recapture failed." } : prev);
+      return;
+    }
+    // Re-enter the polling loop — job goes back through the pipeline.
+    try {
+      for (;;) {
+        await sleep(2000);
+        const s = await fetch(`${WORKER}/api/jobs/${job.id}`).then((r) => r.json());
+        setJob({
+          id: job.id, status: s.status, step: s.step ?? STEP_LABEL[s.status as Status] ?? "",
+          error: s.error, errorCode: s.errorCode, extensionName: s.extensionName, brandColor: s.brandColor,
+          images: s.images ?? [], copy: s.copy, manifestHealth: s.manifestHealth, iconKit: s.iconKit,
+        });
+        if (s.status === "done" || s.status === "error") break;
+      }
+    } catch (err) {
+      setJob((prev) => prev ? { ...prev, status: "error", error: err instanceof Error ? err.message : "Recapture failed." } : prev);
+    }
   }
 
   async function relayClick(jobId: string, xFrac: number, yFrac: number) {
@@ -534,8 +570,16 @@ export default function Home() {
           {job?.status === "error" && (
             <div className="panel">
               <div className="error-box">{job.error ?? "Something went wrong."}</div>
+              {job.errorCode && ERROR_GUIDANCE[job.errorCode] && (
+                <div style={{ marginTop: 10, fontSize: 13, color: "var(--text-faint)", lineHeight: 1.55 }}>
+                  {ERROR_GUIDANCE[job.errorCode]}
+                </div>
+              )}
               <div className="cta-row" style={{ marginTop: 16 }}>
-                {picked && (
+                {job.id && (
+                  <button className="btn btn-primary" onClick={recapture}>Try again</button>
+                )}
+                {picked && !job.id && (
                   <button className="btn btn-primary" onClick={generate}>Try again</button>
                 )}
                 <button className="btn btn-ghost" onClick={reset}>Try another extension</button>
@@ -547,6 +591,7 @@ export default function Home() {
             <Results
               job={job}
               onReset={reset}
+              onRecapture={recapture}
               onRerender={(images, iconKit) =>
                 setJob((prev) =>
                   prev ? { ...prev, images, ...(iconKit ? { iconKit } : {}) } : prev,
@@ -624,14 +669,17 @@ export default function Home() {
 function Results({
   job,
   onReset,
+  onRecapture,
   onRerender,
 }: {
   job: JobState;
   onReset: () => void;
+  onRecapture: () => void;
   onRerender: (images: string[], iconKit: { files: string[] } | undefined) => void;
 }) {
   const health = job.manifestHealth;
   const [copy, setCopy] = useState<Copy | undefined>(job.copy);
+  const [editedCopy, setEditedCopy] = useState<Copy | undefined>(job.copy);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const initial = job.brandColor && /^#[0-9a-fA-F]{6}$/.test(job.brandColor) ? job.brandColor : "#64748b";
   const [accentColor, setAccentColor] = useState(initial);
@@ -693,6 +741,7 @@ function Results({
       if (!res.ok) throw new Error("Regeneration failed.");
       const data = await res.json() as { copy: Copy };
       setCopy(data.copy);
+      setEditedCopy(data.copy);
     } catch {
       setRecopyError("Regeneration failed. Please try again.");
     } finally {
@@ -871,13 +920,20 @@ function Results({
             <div className="copy-block">
               <div className="cb-head">
                 <span className="cb-label">Store title <span className="cb-meta">(45 chars max)</span></span>
-                <button className="btn-mini" onClick={() => doCopy(copy.title!, "title")}>
+                <button className="btn-mini" onClick={() => doCopy(editedCopy?.title ?? copy.title!, "title")}>
                   {copiedKey === "title" ? "Copied!" : "Copy"}
                 </button>
               </div>
-              <div className="cb-text">{copy.title}</div>
-              <div className="title-charcount" style={{ color: copy.title.length > 45 ? "var(--red)" : "var(--text-faint)" }}>
-                {copy.title.length}/45
+              <textarea
+                className="cb-text cb-editable"
+                value={editedCopy?.title ?? copy.title}
+                maxLength={80}
+                rows={1}
+                onChange={(e) => setEditedCopy((prev) => prev ? { ...prev, title: e.target.value } : prev)}
+                style={{ resize: "none", overflow: "hidden" }}
+              />
+              <div className="title-charcount" style={{ color: (editedCopy?.title ?? copy.title).length > 45 ? "var(--red)" : "var(--text-faint)" }}>
+                {(editedCopy?.title ?? copy.title).length}/45
               </div>
             </div>
           )}
@@ -889,20 +945,31 @@ function Results({
           <div className="copy-block">
             <div className="cb-head">
               <span className="cb-label">Short description</span>
-              <button className="btn-mini" onClick={() => doCopy(copy.shortDescription, "short")}>
+              <button className="btn-mini" onClick={() => doCopy(editedCopy?.shortDescription ?? copy.shortDescription, "short")}>
                 {copiedKey === "short" ? "Copied!" : "Copy"}
               </button>
             </div>
-            <div className="cb-text">{copy.shortDescription}</div>
+            <textarea
+              className="cb-text cb-editable"
+              value={editedCopy?.shortDescription ?? copy.shortDescription}
+              rows={3}
+              onChange={(e) => setEditedCopy((prev) => prev ? { ...prev, shortDescription: e.target.value } : prev)}
+            />
           </div>
           <div className="copy-block">
             <div className="cb-head">
               <span className="cb-label">Long description</span>
-              <button className="btn-mini" onClick={() => doCopy(copy.longDescription, "long")}>
+              <button className="btn-mini" onClick={() => doCopy(editedCopy?.longDescription ?? copy.longDescription, "long")}>
                 {copiedKey === "long" ? "Copied!" : "Copy"}
               </button>
             </div>
-            <div className="cb-text" style={{ whiteSpace: "pre-wrap" }}>{copy.longDescription}</div>
+            <textarea
+              className="cb-text cb-editable"
+              value={editedCopy?.longDescription ?? copy.longDescription}
+              rows={10}
+              style={{ whiteSpace: "pre-wrap" }}
+              onChange={(e) => setEditedCopy((prev) => prev ? { ...prev, longDescription: e.target.value } : prev)}
+            />
           </div>
           <div className="copy-block">
             <div className="cb-head">
@@ -918,15 +985,19 @@ function Results({
             <div className="copy-block">
               <div className="cb-head">
                 <span className="cb-label">Keywords</span>
-                <button className="btn-mini" onClick={() => doCopy(copy.keywords!.join(", "), "keywords")}>
+                <button className="btn-mini" onClick={() => doCopy(editedCopy?.keywords?.join(", ") ?? copy.keywords!.join(", "), "keywords")}>
                   {copiedKey === "keywords" ? "Copied!" : "Copy all"}
                 </button>
               </div>
-              <div className="keyword-chips">
-                {copy.keywords.map((kw, i) => (
-                  <span key={i} className="keyword-chip">{kw}</span>
-                ))}
-              </div>
+              <textarea
+                className="cb-text cb-editable"
+                value={editedCopy?.keywords?.join(", ") ?? copy.keywords.join(", ")}
+                rows={3}
+                onChange={(e) => setEditedCopy((prev) => prev ? {
+                  ...prev,
+                  keywords: e.target.value.split(",").map((k) => k.trim()).filter(Boolean),
+                } : prev)}
+              />
             </div>
           ) : null}
 
@@ -1048,6 +1119,7 @@ function Results({
       </div>
 
       <div className="cta-row" style={{ marginTop: 16, justifyContent: "flex-start" }}>
+        <button className="btn btn-ghost" onClick={onRecapture}>Re-capture</button>
         <button className="btn btn-ghost" onClick={onReset}>Generate another</button>
       </div>
     </div>

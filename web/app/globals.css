@@ -1045,6 +1045,26 @@ h1.hero-title .accent {
   white-space: pre-wrap;
 }
 
+/* editable copy fields — textarea that looks like the read-only text */
+textarea.cb-editable {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14.5px;
+  color: var(--text);
+  white-space: pre-wrap;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+textarea.cb-editable:focus {
+  border-color: var(--accent);
+}
+
 .btn-mini {
   font-family: var(--font-mono), monospace;
   font-size: 12px;

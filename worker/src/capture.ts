@@ -272,12 +272,24 @@ export async function captureContentOverlay(
         // async API calls the extension makes on page load (~2-3s).
         await page.waitForTimeout(8000);
         // Multi-step login guard: if we're still on an auth page (2FA, email
-        // verification, bot challenge, etc.), re-show the browser so the user
-        // can finish the remaining steps. Repeats until the page is clear.
+        // verification, bot challenge) after the first sign-in, re-show the
+        // browser so the user can finish. Cap at 2 extra pauses — if the site
+        // keeps showing a bot challenge after that, its anti-bot detection is
+        // blocking the automated browser and we can't proceed.
+        let authLoopCount = 0;
         while (await detectAuthSignals(page)) {
+          if (authLoopCount >= 2) {
+            throw new Error(
+              "The site kept showing a security check even after sign-in. " +
+              "Its bot detection is blocking ZipSnap's browser. " +
+              "Try a different sign-in method (email/password instead of Google) " +
+              "or use the custom URL field to point at a page that doesn't require login.",
+            );
+          }
           info("Still on an auth page — re-pausing for remaining login steps");
           await opts.onLoginNeeded(page, page.url());
           await page.waitForTimeout(3000);
+          authLoopCount++;
         }
       }
     }

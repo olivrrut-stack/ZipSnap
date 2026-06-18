@@ -51,6 +51,7 @@ interface Job {
   status: JobStatus;
   step: string;
   error?: string;
+  errorCode?: string;
   dir: string;
   extPath: string;
   outputDir: string;
@@ -273,8 +274,20 @@ async function processJob(job: Job): Promise<void> {
   } catch (err) {
     job.status = "error";
     job.error = err instanceof Error ? err.message : String(err);
-    logEvent("job_error", { jobId: job.id, error: job.error });
+    job.errorCode = classifyError(job.error);
+    logEvent("job_error", { jobId: job.id, error: job.error, errorCode: job.errorCode });
   }
+}
+
+function classifyError(message: string): string {
+  if (/login timed out/i.test(message)) return "login-timeout";
+  if (/security check|bot detection/i.test(message)) return "bot-detection";
+  if (/ai declined|refused to write/i.test(message)) return "ai-refusal";
+  if (/could not be parsed/i.test(message)) return "ai-failure";
+  if (/timed out|took too long/i.test(message)) return "capture-timeout";
+  if (/net::|failed to navigate|navigation failed/i.test(message)) return "navigation-failed";
+  if (/manifest\.json/i.test(message)) return "manifest-missing";
+  return "unknown";
 }
 
 // --- Concurrency queue ---------------------------------------------------
@@ -451,6 +464,7 @@ app.get("/api/jobs/:id", (req, res) => {
     status: job.status,
     step: job.step,
     error: job.error,
+    errorCode: job.errorCode,
     extensionName: job.capture?.extension.name,
     brandColor: job.capture?.brandColor,
     images: job.status === "done" ? job.images : [],
@@ -742,6 +756,43 @@ app.post("/api/jobs/:id/recopy", rerecopyLimiter, async (req: express.Request<{ 
     job.step = "Done";
     res.status(500).json({ error: err instanceof Error ? err.message : "Recopy failed." });
   }
+});
+
+// Re-run the full pipeline for a finished or failed job (re-capture, re-copy, re-render).
+const recaptureLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 2,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many recapture requests. Please wait a moment." },
+});
+
+app.post("/api/jobs/:id/recapture", recaptureLimiter, async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job) { res.status(404).json({ error: "No such job." }); return; }
+  if (job.status !== "done" && job.status !== "error") {
+    res.status(409).json({ error: "Job is still running." }); return;
+  }
+  if (pendingQueue.length >= MAX_PENDING_JOBS) {
+    res.status(503).json({ error: "Server is busy right now. Please try again in a few minutes." }); return;
+  }
+
+  // Reset all output state so the pipeline starts fresh.
+  job.status = "queued";
+  job.step = "Queued";
+  job.error = undefined;
+  job.errorCode = undefined;
+  job.images = [];
+  job.capture = undefined;
+  job.copy = undefined;
+  job.kitDir = undefined;
+  job.kitZipPath = undefined;
+  job.iconFiles = undefined;
+  job.iconsDir = undefined;
+
+  pendingQueue.push(job);
+  pumpQueue();
+  res.json({ ok: true });
 });
 
 // Download the finished kit zip.

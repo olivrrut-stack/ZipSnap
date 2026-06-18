@@ -2,6 +2,7 @@ import path from "node:path";
 import { readFileSync } from "node:fs";
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
+import type { LayoutVariant } from "./layoutSpec";
 
 /**
  * Rendering pipeline: a layout description -> SVG (Satori) -> PNG (resvg-js),
@@ -90,8 +91,8 @@ async function toPng(element: any, width: number, height: number): Promise<Buffe
 
 // ---------- templates ----------
 
-/** A 1280x800 store screenshot: captured UI framed on a branded gradient + headline. */
-export async function renderScreenshot(opts: {
+// "stacked" layout: bold headline above a screenshot card on a gradient background.
+async function renderScreenshotStacked(opts: {
   brand: Brand;
   headline: string;
   screenshotPath: string;
@@ -101,7 +102,7 @@ export async function renderScreenshot(opts: {
   const H = 800;
   const PAD = 64;
   const CARD_PAD = 28;
-  const headlineBlock = 132; // reserved height for the headline area
+  const headlineBlock = 132;
   const maxW = W - PAD * 2 - CARD_PAD * 2;
   const maxH = H - PAD * 2 - headlineBlock - CARD_PAD * 2;
   const img = fit(opts.screenshotSize.width, opts.screenshotSize.height, maxW, maxH);
@@ -110,14 +111,9 @@ export async function renderScreenshot(opts: {
     type: "div",
     props: {
       style: {
-        width: W,
-        height: H,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: PAD,
-        backgroundImage: opts.brand.gradient,
-        fontFamily: "Geist Mono",
+        width: W, height: H,
+        display: "flex", flexDirection: "column", alignItems: "center",
+        padding: PAD, backgroundImage: opts.brand.gradient, fontFamily: "Geist Mono",
       },
       children: [
         {
@@ -125,15 +121,9 @@ export async function renderScreenshot(opts: {
           props: {
             style: {
               height: headlineBlock,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textAlign: "center",
-              color: opts.brand.ink,
-              fontSize: 46,
-              fontWeight: 700,
-              letterSpacing: -1,
-              lineHeight: 1.15,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              textAlign: "center", color: opts.brand.ink,
+              fontSize: 46, fontWeight: 700, letterSpacing: -1, lineHeight: 1.15,
             },
             children: opts.headline,
           },
@@ -142,25 +132,96 @@ export async function renderScreenshot(opts: {
           type: "div",
           props: {
             style: {
-              flex: 1,
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#f4f4f7",
-              borderRadius: 24,
-              padding: CARD_PAD,
+              flex: 1, width: "100%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              backgroundColor: "#f4f4f7", borderRadius: 24, padding: CARD_PAD,
               boxShadow: "0 30px 60px rgba(0,0,0,0.28)",
             },
             children: {
               type: "img",
               props: {
                 src: dataUrl(opts.screenshotPath),
-                width: img.width,
-                height: img.height,
+                width: img.width, height: img.height,
+                style: { borderRadius: 8, border: "1px solid #e2e3ea" },
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+  return toPng(element, W, H);
+}
+
+// "split" layout: gradient text panel on the left, screenshot on the right.
+async function renderScreenshotSplit(opts: {
+  brand: Brand;
+  headline: string;
+  name: string;
+  screenshotPath: string;
+  screenshotSize: { width: number; height: number };
+}): Promise<Buffer> {
+  const W = 1280;
+  const H = 800;
+  const LEFT_W = 420;
+  const RIGHT_W = W - LEFT_W;
+  const RIGHT_PAD = 44;
+  const img = fit(opts.screenshotSize.width, opts.screenshotSize.height, RIGHT_W - RIGHT_PAD * 2, H - RIGHT_PAD * 2);
+
+  const element = {
+    type: "div",
+    props: {
+      style: {
+        width: W, height: H, display: "flex", flexDirection: "row", fontFamily: "Geist Mono",
+      },
+      children: [
+        {
+          type: "div",
+          props: {
+            style: {
+              width: LEFT_W, height: H, display: "flex", flexDirection: "column",
+              justifyContent: "center", padding: 48,
+              backgroundImage: opts.brand.gradient, color: opts.brand.ink,
+            },
+            children: [
+              {
+                type: "div",
+                props: {
+                  style: {
+                    fontSize: 12, fontWeight: 400, opacity: 0.65,
+                    marginBottom: 20, letterSpacing: 1.5, textTransform: "uppercase",
+                  },
+                  children: opts.name,
+                },
+              },
+              {
+                type: "div",
+                props: {
+                  style: {
+                    fontSize: 38, fontWeight: 700, letterSpacing: -0.5, lineHeight: 1.2,
+                  },
+                  children: opts.headline,
+                },
+              },
+            ],
+          },
+        },
+        {
+          type: "div",
+          props: {
+            style: {
+              flex: 1, height: H,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              backgroundColor: "#f4f4f7", padding: RIGHT_PAD,
+            },
+            children: {
+              type: "img",
+              props: {
+                src: dataUrl(opts.screenshotPath),
+                width: img.width, height: img.height,
                 style: {
-                  borderRadius: 8,
-                  border: "1px solid #e2e3ea",
+                  borderRadius: 10, border: "1px solid #e2e3ea",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.18)",
                 },
               },
             },
@@ -170,6 +231,85 @@ export async function renderScreenshot(opts: {
     },
   };
   return toPng(element, W, H);
+}
+
+// "spotlight" layout: dark background, large screenshot center, small headline above.
+async function renderScreenshotSpotlight(opts: {
+  brand: Brand;
+  headline: string;
+  screenshotPath: string;
+  screenshotSize: { width: number; height: number };
+}): Promise<Buffer> {
+  const W = 1280;
+  const H = 800;
+  const HEADLINE_H = 88;
+  const PAD_X = 52;
+  const PAD_B = 40;
+  const maxW = W - PAD_X * 2;
+  const maxH = H - HEADLINE_H - PAD_B * 2;
+  const img = fit(opts.screenshotSize.width, opts.screenshotSize.height, maxW, maxH, 1.5);
+  const bgColor = darken(opts.brand.rgb, 0.16);
+
+  const element = {
+    type: "div",
+    props: {
+      style: {
+        width: W, height: H, display: "flex", flexDirection: "column",
+        alignItems: "center", backgroundColor: bgColor, fontFamily: "Geist Mono",
+      },
+      children: [
+        {
+          type: "div",
+          props: {
+            style: {
+              height: HEADLINE_H, width: W,
+              display: "flex", alignItems: "center",
+              paddingLeft: PAD_X, paddingRight: PAD_X,
+              color: opts.brand.ink === "#ffffff" ? opts.brand.color : "#ffffff",
+              fontSize: 38, fontWeight: 700, letterSpacing: -0.5, lineHeight: 1.15,
+            },
+            children: opts.headline,
+          },
+        },
+        {
+          type: "div",
+          props: {
+            style: {
+              flex: 1, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              paddingLeft: PAD_X, paddingRight: PAD_X, paddingBottom: PAD_B,
+            },
+            children: {
+              type: "img",
+              props: {
+                src: dataUrl(opts.screenshotPath),
+                width: img.width, height: img.height,
+                style: {
+                  borderRadius: 12, boxShadow: "0 40px 80px rgba(0,0,0,0.50)",
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+  return toPng(element, W, H);
+}
+
+/** A 1280x800 store screenshot. Layout variant is chosen by the AI in the pipeline. */
+export async function renderScreenshot(opts: {
+  brand: Brand;
+  headline: string;
+  name: string;
+  screenshotPath: string;
+  screenshotSize: { width: number; height: number };
+  layout?: LayoutVariant;
+}): Promise<Buffer> {
+  const layout = opts.layout ?? "stacked";
+  if (layout === "split") return renderScreenshotSplit(opts);
+  if (layout === "spotlight") return renderScreenshotSpotlight(opts);
+  return renderScreenshotStacked(opts);
 }
 
 /** A promo tile (small 440x280 or marquee 1400x560): name + tagline on the brand gradient. */

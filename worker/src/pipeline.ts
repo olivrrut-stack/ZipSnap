@@ -14,6 +14,7 @@ import { launchExtension, resolveExtensionId, teardown } from "./extensionContex
 import { extractBrandColor } from "./brandColor";
 import { capturePopup, captureOptions, captureContentOverlay } from "./capture";
 import { makeBrand, renderScreenshot, renderTile } from "./render";
+import { analyzeLayout } from "./layoutSpec";
 import { ok } from "./log";
 import type { CaptureResult, CapturedSurface } from "./types";
 import type { StoreCopy } from "./copy";
@@ -189,6 +190,9 @@ export async function runRender(
   await mkdir(kitDir, { recursive: true });
   const files: string[] = [];
 
+  onStep("Choosing layout");
+  const layout = await analyzeLayout(shots.map((s) => s.path), capture.extension.name);
+
   onStep("Rendering screenshots");
   const screenshotCount = Math.min(5, shots.length);
   for (let i = 0; i < screenshotCount; i++) {
@@ -196,8 +200,10 @@ export async function runRender(
     const buf = await renderScreenshot({
       brand,
       headline: copy.slideHeadlines[i],
+      name: capture.extension.name,
       screenshotPath: shot.path,
       screenshotSize: shot.size,
+      layout,
     });
     files.push(await saveVerified(buf, path.join(kitDir, `screenshot-${i + 1}.png`), { width: 1280, height: 800 }));
   }
