@@ -374,23 +374,33 @@ export default function Home() {
               </div>
 
               {picked && (
-                <div style={{ marginTop: 14 }}>
-                  <p style={{ margin: "0 0 6px", fontSize: 13, color: "var(--text-faint)", textAlign: "center" }}>
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 500, color: "var(--text)", textAlign: "center", lineHeight: 1.4 }}>
                     Or override which page gets automatically photographed — choose your own
                   </p>
-                  <input
-                    id="screenshot-url"
-                    type="text"
-                    value={screenshotUrl}
-                    onChange={(e) => setScreenshotUrl(e.target.value)}
-                    placeholder="e.g. dashboard, settings, shopping cart…"
-                    style={{
-                      width: "100%", boxSizing: "border-box",
-                      background: "var(--surface)", border: "1px solid var(--border)",
-                      borderRadius: 8, padding: "8px 12px", fontSize: 13,
-                      color: "var(--text)", outline: "none",
-                    }}
-                  />
+                  <div style={{ position: "relative" }}>
+                    <input
+                      id="screenshot-url"
+                      type="text"
+                      value={screenshotUrl}
+                      onChange={(e) => setScreenshotUrl(e.target.value)}
+                      placeholder=""
+                      style={{
+                        width: "100%", boxSizing: "border-box",
+                        background: "var(--panel)", border: "1px solid var(--line)",
+                        borderRadius: 999, padding: "9px 40px 9px 16px", fontSize: 14,
+                        color: "var(--text)", outline: "none",
+                      }}
+                    />
+                    <svg
+                      width="15" height="15" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)", pointerEvents: "none" }}
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.35-4.35" />
+                    </svg>
+                  </div>
                 </div>
               )}
 
