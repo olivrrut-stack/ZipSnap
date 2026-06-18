@@ -117,12 +117,15 @@ export async function runCapture(
     const brandColor = await extractBrandColor(loaded.context, surfaces.iconPath);
 
     onStep("Capturing screens");
-    const popup = await capturePopup(loaded.context, extensionId, surfaces.popup, outputDir);
-    const options = await captureOptions(loaded.context, extensionId, surfaces.optionsPage, outputDir);
+    // Content overlay runs first so any chrome.storage data it writes
+    // (e.g. usage stats fetched by the content script) is available when
+    // the popup is captured immediately after.
     const contentOverlay = await captureContentOverlay(loaded.context, manifest, outputDir, {
       onLoginNeeded: opts.onLoginNeeded,
       customContentUrl: opts.customContentUrl,
     });
+    const popup = await capturePopup(loaded.context, extensionId, surfaces.popup, outputDir);
+    const options = await captureOptions(loaded.context, extensionId, surfaces.optionsPage, outputDir);
 
     const result: CaptureResult = {
       extension: { id: extensionId, ...meta },

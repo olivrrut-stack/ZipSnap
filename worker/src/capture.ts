@@ -268,7 +268,9 @@ export async function captureContentOverlay(
         }
         await dismissConsent(page);
         // Give the page and extension time to settle after login.
-        await page.waitForTimeout(5000);
+        // 8s covers: SPA navigation (~1s) + content-script init + any
+        // async API calls the extension makes on page load (~2-3s).
+        await page.waitForTimeout(8000);
         // Multi-step login guard: if we're still on an auth page (2FA, email
         // verification, bot challenge, etc.), re-show the browser so the user
         // can finish the remaining steps. Repeats until the page is clear.

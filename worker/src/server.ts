@@ -193,18 +193,38 @@ async function processJob(job: Job): Promise<void> {
         job.status = "awaiting-login";
         job.step = `Sign in to ${host} in the browser below`;
         job.loginPage = page;
+
+        // When the site opens an OAuth popup (e.g. "Continue with Google"),
+        // follow it: switch the screencast and relay to the popup, then
+        // switch back to the original page when the popup closes.
+        const handlePopup = async (popup: Page) => {
+          if (job.status !== "awaiting-login") return;
+          await stopScreencast(job);
+          job.loginPage = popup;
+          await startScreencast(job);
+          popup.on("close", async () => {
+            if (job.status === "awaiting-login") {
+              await stopScreencast(job);
+              job.loginPage = page;
+              await startScreencast(job);
+            }
+          });
+        };
+        page.on("popup", handlePopup);
+
         await startScreencast(job);
         try {
           await new Promise<void>((resolve, reject) => {
             job.loginResolver = resolve;
             job.loginTimeout = setTimeout(
-              () => reject(new Error("Login timed out — complete sign-in within 5 minutes and try again.")),
+              () => reject(new Error("Login timed out. Complete sign-in within 5 minutes and try again.")),
               5 * 60 * 1000,
             );
           });
           job.status = "capturing";
           job.step = "Resuming capture";
         } finally {
+          page.off("popup", handlePopup);
           await stopScreencast(job);
           clearTimeout(job.loginTimeout);
           job.loginPage = undefined;

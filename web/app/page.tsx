@@ -319,7 +319,7 @@ export default function Home() {
             ZipSnap loads it in a real browser, captures every UI surface, writes an optimized
             store listing with title and keywords, checks your permissions for rejection risks,
             generates a paste-ready privacy policy, and designs branded icon files at every
-            required size. All automatically, in about 30 seconds.
+            required size. All automatically, in about 30 seconds (or a few minutes if your extension needs a sign-in).
           </p>
 
           {!job && (
@@ -376,7 +376,7 @@ export default function Home() {
               {picked && (
                 <div style={{ marginTop: 16, maxWidth: 560, margin: "16px auto 0" }}>
                   <p style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 500, color: "var(--text)", textAlign: "center", lineHeight: 1.4 }}>
-                    Or override which page gets automatically photographed — choose your own
+                    Or override which page gets automatically photographed. Choose your own
                   </p>
                   <div style={{ position: "relative" }}>
                     <input
@@ -444,6 +444,8 @@ export default function Home() {
                 <p style={{ margin: 0, fontSize: 13, color: "var(--text-faint)", lineHeight: 1.5 }}>
                   Sign in below so ZipSnap can photograph your extension on this site.
                   Your credentials are used only in a temporary browser session and deleted when capture finishes.
+                  Sign-in can take a few minutes. ZipSnap will continue automatically once you&apos;re in.
+                  If a Google or Apple sign-in window opens, ZipSnap will follow it automatically.
                 </p>
               </div>
 
@@ -598,7 +600,7 @@ export default function Home() {
                 </div>
                 <div className="faq-item">
                   <div className="faq-q">How long does it take?</div>
-                  <div className="faq-a">About 30 seconds. A real browser loads your extension, photographs every screen, then AI writes the listing and renders the images.</div>
+                  <div className="faq-a">About 30 seconds (a few minutes if your extension needs a sign-in). A real browser loads your extension, photographs every screen, then AI writes the listing and renders the images.</div>
                 </div>
                 <div className="faq-item">
                   <div className="faq-q">What happens to my extension files?</div>
@@ -606,7 +608,7 @@ export default function Home() {
                 </div>
                 <div className="faq-item">
                   <div className="faq-q">Is it really free?</div>
-                  <div className="faq-a">Yes, free during beta. No account needed. Drop your extension and go.</div>
+                  <div className="faq-a">Yes, free during beta. No account needed. Drop your extension and go. We&apos;ll give plenty of notice before that changes. Early users get a discount.</div>
                 </div>
               </div>
             </section>
@@ -643,6 +645,17 @@ function Results({
   const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState(false);
+
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (!downloaded) {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [downloaded]);
 
   async function applyColor() {
     setRerenderError(null);
@@ -725,6 +738,7 @@ function Results({
             target="_blank"
             rel="noreferrer"
             style={{ textAlign: "center", boxSizing: "border-box", display: "block" }}
+            onClick={() => setDownloaded(true)}
           >
             Download kit (.zip)
           </a>
@@ -756,27 +770,37 @@ function Results({
                 />
               ))}
             </div>
-            <input
-              type="text"
-              value={hexInput}
-              maxLength={7}
-              onChange={(e) => {
-                setHexInput(e.target.value);
-                if (isHex(e.target.value)) setPickerColor(e.target.value);
-              }}
-              style={{
-                fontFamily: "monospace",
-                fontSize: 12,
-                padding: "4px 8px",
-                borderRadius: 6,
-                border: "1px solid var(--line)",
-                background: "var(--bg-soft)",
-                color: "var(--text)",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-              aria-label="Hex color code"
-            />
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                type="color"
+                value={isHex(pickerColor) ? pickerColor : "#64748b"}
+                onChange={(e) => { setPickerColor(e.target.value); setHexInput(e.target.value); }}
+                style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid var(--line)", background: "var(--bg-soft)", cursor: "pointer", flexShrink: 0 }}
+                aria-label="Color wheel"
+                title="Open color picker"
+              />
+              <input
+                type="text"
+                value={hexInput}
+                maxLength={7}
+                onChange={(e) => {
+                  setHexInput(e.target.value);
+                  if (isHex(e.target.value)) setPickerColor(e.target.value);
+                }}
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  borderRadius: 6,
+                  border: "1px solid var(--line)",
+                  background: "var(--bg-soft)",
+                  color: "var(--text)",
+                  flex: 1,
+                  boxSizing: "border-box",
+                }}
+                aria-label="Hex color code"
+              />
+            </div>
             <button
               className="btn btn-primary"
               style={{ width: "100%", padding: "6px 0", fontSize: 13 }}
@@ -878,7 +902,7 @@ function Results({
                 {copiedKey === "long" ? "Copied!" : "Copy"}
               </button>
             </div>
-            <div className="cb-text">{copy.longDescription}</div>
+            <div className="cb-text" style={{ whiteSpace: "pre-wrap" }}>{copy.longDescription}</div>
           </div>
           <div className="copy-block">
             <div className="cb-head">
@@ -887,7 +911,7 @@ function Results({
                 {copiedKey === "headlines" ? "Copied!" : "Copy all"}
               </button>
             </div>
-            <div className="cb-text">{copy.slideHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}</div>
+            <div className="cb-text" style={{ whiteSpace: "pre-wrap" }}>{copy.slideHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}</div>
           </div>
 
           {copy.keywords?.length ? (
