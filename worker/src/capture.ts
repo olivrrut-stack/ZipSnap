@@ -4,6 +4,7 @@ import type { BrowserContext, Page } from "playwright";
 import type { CapturedSurface } from "./types";
 import { startDemoServer } from "./demoServer";
 import { resolveContentTarget } from "./contentTarget";
+import { withTimeout } from "./withTimeout";
 import { ok, info, warn } from "./log";
 
 /** The size of the simulated browser window for full-page surfaces. */
@@ -56,7 +57,14 @@ async function detectAuthSignals(page: Page): Promise<boolean> {
   // URL-pattern fast path covers most dedicated auth pages (login, 2FA, verify…)
   if (looksLikeLoginPage(page.url(), false)) return true;
 
-  return page.evaluate(() => {
+  // page.evaluate has no timeout of its own: on a heavy SPA whose JS context
+  // never settles (e.g. LinkedIn post-login), it can hang forever and strand
+  // the whole capture. Bound it, and treat a timeout as "no auth wall" so
+  // capture proceeds — the screenshot step has its own CDP fallback for such
+  // pages. Without this, a stuck evaluate leaves the job at "capturing" with
+  // no error and no progress.
+  try {
+    return await withTimeout(page.evaluate(() => {
     if (document.querySelector('input[type="password"]')) return true;
 
     // OTP / 2FA inputs are always auth-context
@@ -81,7 +89,10 @@ async function detectAuthSignals(page: Page): Promise<boolean> {
     const hasSignInCta = Array.from(document.querySelectorAll('button, [role="button"], a'))
       .some((el) => /^(sign\s*in|log\s*in)$/i.test((el.textContent ?? "").trim()));
     return hasEmailInput && hasSignInCta;
-  });
+    }), 5_000, "auth-detect timed out");
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import type { BrowserContext } from "playwright";
+import { withTimeout } from "./withTimeout";
 
 /**
  * Finds the extension's dominant brand color from its 128px icon.
@@ -23,7 +24,10 @@ export async function extractBrandColor(
   const dataUrl = `data:image/png;base64,${(await readFile(iconPath)).toString("base64")}`;
   const page = await context.newPage();
   try {
-    return await page.evaluate(async (src) => {
+    // Bound the in-page work: img.decode()/canvas can stall on a wedged
+    // renderer, and page.evaluate has no timeout of its own. The catch below
+    // turns a timeout into the neutral FALLBACK rather than a hung job.
+    return await withTimeout(page.evaluate(async (src) => {
       const img = new Image();
       img.src = src;
       await img.decode();
@@ -74,7 +78,7 @@ export async function extractBrandColor(
 
       const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
       return `#${toHex(best.r / best.count)}${toHex(best.g / best.count)}${toHex(best.b / best.count)}`;
-    }, dataUrl);
+    }, dataUrl), 5_000, "brand-color timed out");
   } catch {
     return FALLBACK;
   } finally {
