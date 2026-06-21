@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import JSZip from "jszip";
 import Footer from "./components/Footer";
 import Gallery from "./components/Gallery";
 import { sizeOf, deriveName, createCoalescer } from "./lib/utils";
@@ -103,6 +102,9 @@ function walkEntry(entry: any, prefix: string, out: { path: string; file: File }
 
 /** Zips a list of {path, file} into a single Blob. */
 async function zipFiles(files: { path: string; file: File }[]): Promise<Blob> {
+  // Loaded on demand (only when a folder is dropped) so it stays out of the
+  // initial page bundle.
+  const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   for (const { path, file } of files) zip.file(path, file);
   return zip.generateAsync({ type: "blob" });
