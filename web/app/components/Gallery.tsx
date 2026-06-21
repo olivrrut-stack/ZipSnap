@@ -177,7 +177,7 @@ export default function Gallery() {
                 <div className="ticker-body">
                   {t.kind === "image" ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={t.src} alt={i < TILES.length ? t.caption : ""} />
+                    <img src={t.src} alt={i < TILES.length ? t.caption : ""} loading="lazy" decoding="async" />
                   ) : (
                     <ContentBody type={t.type} />
                   )}

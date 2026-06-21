@@ -4,9 +4,12 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { SITE_URL } from "./lib/site";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
+// display: "swap" so headline text paints immediately with a fallback instead
+// of blocking on the web font (the hero title was the slow LCP element). The
+// mono font is only used in small labels, so don't preload it.
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap", preload: false });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 const title = "ZipSnap — Auto-generate your Chrome Web Store kit";
 const description =
