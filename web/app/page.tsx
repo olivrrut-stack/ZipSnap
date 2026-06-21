@@ -366,12 +366,21 @@ export default function Home() {
             Zip in your extension. <span className="accent">Snap out a store kit.</span>
           </h1>
           <p className="subhead">
-            Drag in your Chrome extension, a <span className="mono">.zip</span> or its folder.
-            ZipSnap loads it in a real browser, captures every UI surface, writes an optimized
-            store listing with title and keywords, checks your permissions for rejection risks,
-            generates a paste-ready privacy policy, and designs branded icon files at every
-            required size. All automatically, in about 30 seconds (or a few minutes if your extension needs a sign-in).
+            Drop your extension. ZipSnap loads it in a real browser, shoots its actual screens,
+            and writes your whole store listing. About 30 seconds.
           </p>
+
+          <div className="flow" aria-hidden="true">
+            <span className="flow-chip flow-chip--in">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" /></svg>
+              your <span className="mono">.zip</span>
+            </span>
+            <span className="flow-arrow">→</span>
+            <span className="flow-chip flow-chip--out">screenshots</span>
+            <span className="flow-chip flow-chip--out">promo tiles</span>
+            <span className="flow-chip flow-chip--out">store listing</span>
+            <span className="flow-chip flow-chip--out">icons</span>
+          </div>
 
           {!job && (
             <>
@@ -481,7 +490,7 @@ export default function Home() {
                   <div className="bar-fill" style={{ width: `${PCT[job!.status]}%` }} />
                 </div>
                 <p className="muted-note">
-                  We&apos;re running a real browser to photograph your extension&apos;s actual UI. Usually about half a minute.
+                  We&apos;re running a real browser to photograph your extension&apos;s actual UI. Usually about 30 seconds.
                 </p>
               </div>
             </div>
@@ -625,7 +634,14 @@ export default function Home() {
               <h2 className="section-title">Three steps. Zero screenshots.</h2>
               <div className="steps">
                 <div className="step"><div className="step-num">1</div><h3>Drop your extension</h3><p>Drag in a .zip or your unpacked folder. ZipSnap reads its manifest to find every screen it has: popup, options, and on-page UI.</p></div>
-                <div className="step"><div className="step-num">2</div><h3>We capture it live</h3><p>It loads your extension in a real browser and photographs its actual screens, even site-specific ones, on the site they belong to.</p></div>
+                <div className="step step--live">
+                  <div className="step-head">
+                    <div className="step-num">2</div>
+                    <span className="live-badge"><span className="live-dot" />live</span>
+                  </div>
+                  <h3>We capture it live</h3>
+                  <p>It loads your extension in a real browser and photographs its actual screens, even site-specific ones, on the site they belong to.</p>
+                </div>
                 <div className="step"><div className="step-num">3</div><h3>Download the kit</h3><p>Screenshots, promo tiles, an optimized listing with title and keywords, a permissions report, a privacy policy, and branded icons. Everything the Chrome Web Store needs.</p></div>
               </div>
             </section>
@@ -751,23 +767,15 @@ function Results({
 
   return (
     <div className="panel">
-      <div className="panel-head" style={{ flexDirection: "column", alignItems: "stretch", gap: 14, flexWrap: "nowrap" }}>
-        <div style={{
-          color: "var(--text)",
-          fontFamily: "var(--font-display), var(--font-sans), sans-serif",
-          fontSize: 22,
-          fontWeight: 680,
-          letterSpacing: "-0.02em",
-          lineHeight: 1.2,
-        }}>
+      <div className="panel-head panel-head--kit">
+        <div className="kit-ready-title">
           {job.extensionName ?? "Your kit"} · ready
         </div>
         <a
-          className="btn btn-primary btn-gradient"
+          className="btn btn-primary btn-gradient kit-download"
           href={`${WORKER}/api/jobs/${job.id}/kit`}
           target="_blank"
           rel="noreferrer"
-          style={{ textAlign: "center", boxSizing: "border-box", display: "block" }}
           onClick={() => setDownloaded(true)}
         >
           Download kit (.zip)
@@ -799,13 +807,13 @@ function Results({
 
       {copy && (
         <>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-            <span style={{ fontSize: 11, color: "var(--text-faint)", fontFamily: "var(--font-mono), monospace", letterSpacing: "0.06em", textTransform: "uppercase" }}>AI copy</span>
+          <div className="copy-section-head">
+            <span className="copy-section-label">AI copy</span>
             <button className="btn-mini" onClick={regenerateCopy} disabled={recopying}>
               {recopying ? "Regenerating…" : "Regenerate copy"}
             </button>
           </div>
-          {recopyError && <div style={{ fontSize: 11, color: "#f87171", marginBottom: 8 }}>{recopyError}</div>}
+          {recopyError && <div className="cb-error">{recopyError}</div>}
           {copy.title && (
             <div className="copy-block">
               <div className="cb-head">
@@ -1003,7 +1011,7 @@ function Results({
               />
               <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Notify me</button>
             </div>
-            {emailError && <p style={{ fontSize: 11, color: "#f87171", margin: "4px 0 0" }}>{emailError}</p>}
+            {emailError && <p className="cb-error" style={{ marginTop: 4 }}>{emailError}</p>}
           </form>
         )}
       </div>

@@ -30,28 +30,27 @@ The `body` background stacked four radial glows (blue/green/yellow/red) at the t
 page. Reduced to two soft glows (blue + subtle green) so the concentrated gradient accents
 read as deliberate against a calmer field.
 
-## Backlog (not yet implemented)
+### 3. Make the hero show, not tell. — [done]
+Cut the 5-line feature-dump subhead to one sharp line ("Drop your extension. ZipSnap loads it
+in a real browser, shoots its actual screens, and writes your whole store listing. About 30
+seconds."). Added a before→after `.flow` strip under it: a blue-tinted `your .zip` chip → the
+kit it becomes (screenshots, promo tiles, store listing, icons). The exhaustive feature list
+lives in the "What you get" section, so the hero no longer duplicates it.
 
-### 3. Make the hero show, not tell. — [todo]
-The subhead is a 5-line paragraph listing every feature — that's the feature list doing the
-hero's job. Cut it to one sharp line and let a before→after visual carry the proof: a
-puzzle-piece `.zip` on the left, the finished store tiles on the right. Pulling one frame of
-the existing Gallery ticker up into the hero would land harder than the paragraph.
+### 4. Emphasise step 2 (the live capture). — [done]
+Kept the 1/2/3 numbering (real sequence). Gave step 2 a `.step--live` treatment: a red-tinted
+card plus a pulsing "● live" badge, so the headline auto-capture feature stands out from the
+two flat siblings. Pulse respects `prefers-reduced-motion`.
 
-### 4. Emphasise step 2 (the live capture). — [todo]
-The "01 / 02 / 03" steps are an honest sequence, so keep the numbering. But the three cards
-are visually identical flat panels. Auto-capture is the headline feature (per CLAUDE.md), so
-step 2 ("we capture it live") deserves a visual motif the other two don't get — e.g. a small
-live-camera/recording cue.
+### 6. Promote inline styles to classes. — [done]
+Moved the structural Results inline styles onto named classes: `.panel-head--kit`,
+`.kit-ready-title`, `.kit-download`, `.copy-section-head/-label`, `.cb-error` (shared by the
+recopy + email errors), plus the earlier `.url-*` / `.dropzone.ready` classes. Remaining
+inline styles in Results are genuinely dynamic (charcount colour by length, icon size by px)
+and stay inline on purpose.
 
-### 6. Promote inline styles to classes. — [todo]
-The Results panel and the URL-override input are built with large inline `style={{...}}`
-blocks while the rest of the page uses CSS classes. That's why spacing/radii drift between
-sections (`borderRadius: 8/10/999` all appear inline). Promoting them to classes would make
-the results view feel like one system instead of hand-placed pieces.
-
-### 7. Small copy wins. — [todo]
-- Override label reads "Or override which page gets automatically photographed. Choose your
-  own" — two sentences fighting. Try: "Prefer a specific page? Paste its URL."
-- The subhead says "about 30 seconds" and the progress note says "about half a minute" — pick
-  one phrasing and reuse it everywhere (vocabulary consistency).
+### 7. Small copy wins. — [done]
+- Override label rewritten to "By default ZipSnap picks the page to shoot. Prefer a specific
+  one? Paste its URL (optional)." with an example placeholder.
+- Unified the timing copy: the progress note now says "about 30 seconds" to match the subhead
+  and FAQ (was "about half a minute").
