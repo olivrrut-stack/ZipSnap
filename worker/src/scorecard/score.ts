@@ -1,8 +1,10 @@
 /**
  * ZipSnap quality scorecard entrypoint.
  *
- *   npm run score            fast: code + build, inspect latest kit, web checks
- *   npm run score -- --full  also run a real pipeline job and time it (needs API key)
+ *   npm run score                         grade the local production build
+ *   npm run score -- --full               also run a real pipeline job + time it (API key)
+ *   npm run score -- --url https://...    grade a LIVE deployed site instead of localhost
+ *                                         (the honest way to measure real Core Web Vitals)
  *
  * Every tier is wrapped so one failure can't sink the run: a broken tier reports
  * SKIP with the reason and the rest still score. Exit code is non-zero unless
@@ -28,30 +30,41 @@ async function main(): Promise<void> {
   console.log("Checking the output kit...");
   results.push(...(await measureAssets({ full })));
 
+  // Browser tiers run against a live URL (--url) or a freshly built local copy.
+  const urlIdx = argv.indexOf("--url");
+  const liveUrl = (urlIdx >= 0 ? argv[urlIdx + 1] : argv.find((a) => a.startsWith("--url="))?.slice(6))?.replace(/\/+$/, "");
+
   let server: WebServer | undefined;
-  try {
-    console.log("Serving the production web app for browser checks...");
-    server = await serveWeb();
-  } catch (e) {
-    const reason = (e as Error).message;
-    const tiers: Array<[string, string, Tier]> = [
-      ["web-vitals", "Lighthouse (Core Web Vitals + accessibility)", "web-vitals"],
-      ["structural", "structural + keyboard checks", "structural"],
-      ["ai-judge", "AI design judge", "ai-judge"],
-    ];
-    for (const [id, label, tier] of tiers) results.push(skip(id, label, tier, `web server unavailable: ${reason}`));
+  let baseUrl: string | undefined;
+  if (liveUrl) {
+    baseUrl = liveUrl;
+    console.log(`Grading the live site at ${baseUrl}...`);
+  } else {
+    try {
+      console.log("Serving the production web app for browser checks...");
+      server = await serveWeb();
+      baseUrl = server.url;
+    } catch (e) {
+      const reason = (e as Error).message;
+      const tiers: Array<[string, string, Tier]> = [
+        ["web-vitals", "Lighthouse (Core Web Vitals + accessibility)", "web-vitals"],
+        ["structural", "structural + keyboard checks", "structural"],
+        ["ai-judge", "AI design judge", "ai-judge"],
+      ];
+      for (const [id, label, tier] of tiers) results.push(skip(id, label, tier, `web server unavailable: ${reason}`));
+    }
   }
 
-  if (server) {
+  if (baseUrl) {
     try {
       console.log("Running Lighthouse...");
-      results.push(...(await measureLighthouse(server.url)));
+      results.push(...(await measureLighthouse(baseUrl)));
       console.log("Running structural + keyboard checks...");
-      results.push(...(await measureStructural(server.url)));
+      results.push(...(await measureStructural(baseUrl)));
       console.log("Running AI design judge...");
-      results.push(...(await measureAiJudge(server.url)));
+      results.push(...(await measureAiJudge(baseUrl)));
     } finally {
-      server.close();
+      server?.close();
     }
   }
 
