@@ -13,8 +13,9 @@ import { readManifest, extractMeta, detectSurfaces, checkManifestHealth } from "
 import { launchExtension, resolveExtensionId, teardown } from "./extensionContext";
 import { extractBrandColor } from "./brandColor";
 import { capturePopup, captureOptions, captureContentOverlay } from "./capture";
-import { makeBrand, renderScreenshot, renderTile } from "./render";
+import { makeBrand, renderScreenshot, renderTile, type ShotFrame } from "./render";
 import { analyzeLayout } from "./layoutSpec";
+import { generateTileBackground } from "./tileBackground";
 import { ok } from "./log";
 import type { CaptureResult, CapturedSurface } from "./types";
 import type { StoreCopy } from "./copy";
@@ -177,14 +178,27 @@ export async function runRender(
   colorOverride?: string,
 ): Promise<{ kitDir: string; files: string[] }> {
   const brand = makeBrand(colorOverride ?? capture.brandColor);
-  const surfaces: CapturedSurface[] = [
-    capture.surfaces.popup,
-    capture.surfaces.options,
-    capture.surfaces.contentOverlay,
+  // Each surface carries how it should be framed: the popup floats as a card,
+  // the options and content-overlay shots get a mock browser window. The label
+  // becomes the browser address bar (a friendly name for options, the real URL
+  // for the content overlay).
+  const surfaces: { surface: CapturedSurface; frame: ShotFrame; label: string }[] = [
+    { surface: capture.surfaces.popup, frame: "popup", label: capture.extension.name },
+    { surface: capture.surfaces.options, frame: "page", label: "Extension Settings" },
+    {
+      surface: capture.surfaces.contentOverlay,
+      frame: "page",
+      label: capture.surfaces.contentOverlay.source ?? capture.extension.name,
+    },
   ];
   const shots = surfaces
-    .filter((s) => s.exists && s.screenshot && s.size)
-    .map((s) => ({ path: path.join(outputDir, s.screenshot!), size: s.size! }));
+    .filter(({ surface }) => surface.exists && surface.screenshot && surface.size)
+    .map(({ surface, frame, label }) => ({
+      path: path.join(outputDir, surface.screenshot!),
+      size: surface.size!,
+      frame,
+      label,
+    }));
 
   const kitDir = path.join(outputDir, "kit");
   await mkdir(kitDir, { recursive: true });
@@ -203,6 +217,8 @@ export async function runRender(
       name: capture.extension.name,
       screenshotPath: shot.path,
       screenshotSize: shot.size,
+      frame: shot.frame,
+      label: shot.label,
       layout,
     });
     files.push(await saveVerified(buf, path.join(kitDir, `screenshot-${i + 1}.png`), { width: 1280, height: 800 }));
@@ -210,16 +226,18 @@ export async function runRender(
 
   onStep("Rendering promo tiles");
   const tagline = copy.slideHeadlines[0] ?? copy.shortDescription;
+  // Best-effort generated backdrop, shared by both tiles. undefined = use the gradient.
+  const backgroundDataUrl = (await generateTileBackground(brand.color)) ?? undefined;
   files.push(
     await saveVerified(
-      await renderTile({ brand, name: capture.extension.name, tagline, width: 440, height: 280 }),
+      await renderTile({ brand, name: capture.extension.name, tagline, width: 440, height: 280, backgroundDataUrl }),
       path.join(kitDir, "small-promo-440x280.png"),
       { width: 440, height: 280 },
     ),
   );
   files.push(
     await saveVerified(
-      await renderTile({ brand, name: capture.extension.name, tagline, width: 1400, height: 560 }),
+      await renderTile({ brand, name: capture.extension.name, tagline, width: 1400, height: 560, backgroundDataUrl }),
       path.join(kitDir, "marquee-1400x560.png"),
       { width: 1400, height: 560 },
     ),

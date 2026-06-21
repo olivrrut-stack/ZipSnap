@@ -39,26 +39,38 @@ function hostOf(pattern: string): string {
 /**
  * For well-known sites, the bare homepage is often empty (e.g. logged-out
  * YouTube), giving the extension nothing to act on. These hints point us at a
- * content-rich page where on-page UI is far more likely to appear.
+ * content-rich page where the extension's on-page UI is most likely to appear,
+ * so the screenshot shows the extension doing its job in a believable setting.
+ *
+ * Two kinds of site:
+ * - Public-content sites (GitHub, Reddit, YouTube): land on a real, public page
+ *   full of the things the extension acts on. No sign-in is needed, so the shot
+ *   is the extension working on real content, not a login form.
+ * - Login-gated sites (LinkedIn, Instagram, X, Claude): every useful page sits
+ *   behind an account. We point at the content page the user would land on after
+ *   signing in; the site redirects us to its login screen on the way, which the
+ *   login detector (detectAuthSignals) catches so we can pause for sign-in. After
+ *   login the browser is already on that content page, ready to photograph.
  */
 const LANDING_HINTS: Record<string, string> = {
-  // YouTube: avoid empty logged-out homepage
+  // Public content — rich public pages, no sign-in required.
   "www.youtube.com": "results?search_query=technology",
   "youtube.com": "results?search_query=technology",
-  // Sites with public homepages — go straight to the login page so detection fires
-  "github.com": "login",
-  "www.github.com": "login",
-  "x.com": "i/flow/login",
-  "twitter.com": "i/flow/login",
-  "www.twitter.com": "i/flow/login",
-  "linkedin.com": "login",
-  "www.linkedin.com": "login",
-  "reddit.com": "login",
-  "www.reddit.com": "login",
-  "instagram.com": "accounts/login",
-  "www.instagram.com": "accounts/login",
-  "claude.ai": "login",
-  "www.claude.ai": "login",
+  "github.com": "explore",
+  "www.github.com": "explore",
+  "reddit.com": "r/popular",
+  "www.reddit.com": "r/popular",
+  // Login-gated — aim at the post-login content page; the site bounces us to its
+  // own login first, which the detector picks up.
+  "x.com": "home",
+  "twitter.com": "home",
+  "www.twitter.com": "home",
+  "linkedin.com": "feed",
+  "www.linkedin.com": "feed",
+  "instagram.com": "",
+  "www.instagram.com": "",
+  "claude.ai": "new",
+  "www.claude.ai": "new",
 };
 
 /** Turns a specific match pattern into a concrete, visitable URL. */

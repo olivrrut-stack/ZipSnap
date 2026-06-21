@@ -32,6 +32,43 @@ describe("resolveContentTarget", () => {
     });
   });
 
+  it("lands public-content sites on a rich page, never a login form", () => {
+    // Regression: GitHub repo highlighters were being shot on github.com/login,
+    // forcing an unnecessary sign-in and making the hero a third-party login
+    // page instead of the extension. Public content should never route to login.
+    const github = resolveContentTarget({
+      content_scripts: [{ matches: ["https://github.com/*"] }],
+    });
+    expect(github).toEqual({
+      kind: "site",
+      url: "https://github.com/explore",
+      matchUsed: "https://github.com/*",
+    });
+
+    const reddit = resolveContentTarget({
+      content_scripts: [{ matches: ["https://www.reddit.com/*"] }],
+    });
+    expect(reddit).toEqual({
+      kind: "site",
+      url: "https://www.reddit.com/r/popular",
+      matchUsed: "https://www.reddit.com/*",
+    });
+  });
+
+  it("aims login-gated sites at their post-login content page", () => {
+    // LinkedIn gates everything; we target the feed (the site bounces us to its
+    // login on the way, which the login detector catches), so after sign-in the
+    // screenshot is the real feed, not a login form.
+    const linkedin = resolveContentTarget({
+      content_scripts: [{ matches: ["https://www.linkedin.com/*"] }],
+    });
+    expect(linkedin).toEqual({
+      kind: "site",
+      url: "https://www.linkedin.com/feed",
+      matchUsed: "https://www.linkedin.com/*",
+    });
+  });
+
   it("keeps a bare host as-is when there's no wildcard subdomain", () => {
     const target = resolveContentTarget({
       content_scripts: [{ matches: ["https://example.com/*"] }],
