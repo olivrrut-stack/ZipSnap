@@ -40,9 +40,7 @@ body {
   -webkit-font-smoothing: antialiased;
   background-image:
     radial-gradient(860px 480px at 50% -10%, rgba(66, 133, 244, 0.13), transparent 70%),
-    radial-gradient(580px 380px at 83% 3%, rgba(52, 168, 83, 0.08), transparent 72%),
-    radial-gradient(480px 340px at 14% 7%, rgba(234, 67, 53, 0.07), transparent 72%),
-    radial-gradient(460px 320px at 62% 8%, rgba(251, 188, 5, 0.07), transparent 70%);
+    radial-gradient(580px 380px at 83% 3%, rgba(52, 168, 83, 0.08), transparent 72%);
   background-repeat: no-repeat;
 }
 
@@ -143,6 +141,7 @@ body {
   box-shadow: 0 0 8px var(--good);
 }
 h1.hero-title {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
   font-size: clamp(38px, 6vw, 68px);
   line-height: 1.02;
   letter-spacing: -0.035em;
@@ -242,10 +241,11 @@ h1.hero-title .accent {
 }
 .btn-primary {
   color: var(--accent-ink);
-  background: var(--chrome-sweep);
+  background: var(--accent);
   box-shadow: 0 10px 30px rgba(66, 133, 244, 0.28);
 }
 .btn-primary:hover {
+  background: var(--chrome-sweep);
   transform: translateY(-1px);
   box-shadow: 0 14px 38px rgba(66, 133, 244, 0.38);
 }
@@ -254,6 +254,11 @@ h1.hero-title .accent {
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+}
+/* The one gradient button: the final Download kit payoff. */
+.btn-gradient,
+.btn-gradient:hover {
+  background: var(--chrome-sweep);
 }
 .btn-ghost {
   color: var(--text-dim);
@@ -491,15 +496,13 @@ h1.hero-title .accent {
 }
 .section-title {
   text-align: center;
+  font-family: var(--font-display), var(--font-sans), sans-serif;
   font-size: clamp(32px, 5vw, 54px);
   letter-spacing: -0.035em;
   font-weight: 640;
   line-height: 1.05;
   margin-bottom: 46px;
-  background: var(--chrome-sweep);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text);
 }
 .steps {
   display: grid;
@@ -788,7 +791,7 @@ h1.hero-title .accent {
 }
 .bar-fill {
   height: 100%;
-  background: var(--chrome-sweep);
+  background: var(--accent);
   border-radius: 999px;
   transition: width 0.5s ease;
 }
@@ -1112,6 +1115,7 @@ textarea.cb-editable:focus {
   margin: 0 auto;
 }
 .legal h1 {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
   font-size: clamp(28px, 5vw, 40px);
   letter-spacing: -0.03em;
   font-weight: 640;

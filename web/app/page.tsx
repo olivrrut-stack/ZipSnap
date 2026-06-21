@@ -769,10 +769,8 @@ function Results({
     <div className="panel">
       <div className="panel-head" style={{ flexDirection: "column", alignItems: "stretch", gap: 14, flexWrap: "nowrap" }}>
         <div style={{
-          background: "var(--chrome-sweep)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
+          color: "var(--text)",
+          fontFamily: "var(--font-display), var(--font-sans), sans-serif",
           fontSize: 22,
           fontWeight: 680,
           letterSpacing: "-0.02em",
@@ -782,7 +780,7 @@ function Results({
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <a
-            className="btn btn-primary"
+            className="btn btn-primary btn-gradient"
             href={`${WORKER}/api/jobs/${job.id}/kit`}
             target="_blank"
             rel="noreferrer"
