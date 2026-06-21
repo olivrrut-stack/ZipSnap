@@ -374,12 +374,27 @@ const rerenderLimiter = rateLimit({
   message: { error: "Too many rerender requests. Please wait a moment." },
 });
 
+// High-frequency interaction (clicks, keystrokes, scroll). Scroll especially
+// is bursty — a single wheel gesture fires many events — so this budget is
+// generous. It must NOT be shared with login-done: a scroll burst that hits
+// this limit would otherwise 429 the resume action and strand the user.
 const loginInteractionLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 300, // ~5 req/sec — covers 300 ms snapshot polling + interaction
+  limit: 600, // ~10 req/sec — covers interaction + bursty scroll
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many browser interaction requests. Please slow down." },
+});
+
+// Low-frequency control actions (resume after login, back, reload). Separate
+// budget so the critical "Done, I'm logged in" action can never be starved by
+// a flood of scroll/click/type requests on the interaction limiter above.
+const controlActionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please wait a moment and try again." },
 });
 
 app.get("/api/health", (_req, res) => {
@@ -592,7 +607,7 @@ app.post("/api/jobs/:id/browser-scroll", loginInteractionLimiter, express.json()
 });
 
 // Navigate the login browser back one step.
-app.post("/api/jobs/:id/browser-back", loginInteractionLimiter, async (req: express.Request<{ id: string }>, res) => {
+app.post("/api/jobs/:id/browser-back", controlActionLimiter, async (req: express.Request<{ id: string }>, res) => {
   const job = jobs.get(req.params.id);
   if (!job || job.status !== "awaiting-login" || !job.loginPage) {
     res.status(409).json({ error: "No active login session." });
@@ -607,7 +622,7 @@ app.post("/api/jobs/:id/browser-back", loginInteractionLimiter, async (req: expr
 });
 
 // Reload the login browser page (triggers content-script re-injection).
-app.post("/api/jobs/:id/browser-reload", loginInteractionLimiter, async (req: express.Request<{ id: string }>, res) => {
+app.post("/api/jobs/:id/browser-reload", controlActionLimiter, async (req: express.Request<{ id: string }>, res) => {
   const job = jobs.get(req.params.id);
   if (!job || job.status !== "awaiting-login" || !job.loginPage) {
     res.status(409).json({ error: "No active login session." });
@@ -622,7 +637,7 @@ app.post("/api/jobs/:id/browser-reload", loginInteractionLimiter, async (req: ex
 });
 
 // Signal that login is complete — resumes the paused capture.
-app.post("/api/jobs/:id/login-done", loginInteractionLimiter, async (req: express.Request<{ id: string }>, res) => {
+app.post("/api/jobs/:id/login-done", controlActionLimiter, async (req: express.Request<{ id: string }>, res) => {
   const job = jobs.get(req.params.id);
   if (!job || job.status !== "awaiting-login" || !job.loginResolver) {
     res.status(409).json({ error: "No active login session." });

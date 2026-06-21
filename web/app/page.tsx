@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 import Footer from "./components/Footer";
 import Gallery from "./components/Gallery";
-import { sizeOf, deriveName } from "./lib/utils";
+import { sizeOf, deriveName, createCoalescer } from "./lib/utils";
 
 const SWATCHES = [
   "#64748b","#6b7280","#78716c","#71717a","#374151","#1e1e2e",
@@ -127,7 +127,9 @@ export default function Home() {
   const [screenshotUrl, setScreenshotUrl] = useState("");
   const [navOpen, setNavOpen] = useState(false);
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
+  const [loginMsg, setLoginMsg] = useState<string | null>(null);
   const prevFrameUrl = useRef<string | null>(null);
+  const scrollCoalescerRef = useRef<((delta: number) => void) | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const startedAtRef = useRef<number | null>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
@@ -139,6 +141,10 @@ export default function Home() {
   useEffect(() => {
     if (!awaitingLogin || !job) return;
     loginPanelRef.current?.focus();
+    // Coalesce rapid wheel events into ~10 requests/sec so a single scroll
+    // gesture can't flood the server's rate limit (which would block "Done").
+    const jobId = job.id;
+    scrollCoalescerRef.current = createCoalescer((delta) => void relayScroll(jobId, delta), 100);
     const wsUrl = WORKER.replace(/^http/, "ws") + `/api/jobs/${job.id}/browser-stream`;
     const ws = new WebSocket(wsUrl);
     ws.binaryType = "blob";
@@ -152,6 +158,8 @@ export default function Home() {
       ws.close();
       if (prevFrameUrl.current) { URL.revokeObjectURL(prevFrameUrl.current); prevFrameUrl.current = null; }
       setFrameUrl(null);
+      scrollCoalescerRef.current = null;
+      setLoginMsg(null);
     };
   }, [awaitingLogin, job?.id]);
 
@@ -301,7 +309,25 @@ export default function Home() {
   }
 
   async function loginDone(jobId: string) {
-    await fetch(`${WORKER}/api/jobs/${jobId}/login-done`, { method: "POST" }).catch(() => {});
+    setLoginMsg(null);
+    try {
+      const res = await fetch(`${WORKER}/api/jobs/${jobId}/login-done`, { method: "POST" });
+      if (res.status === 429) {
+        setLoginMsg("Too many quick actions just now. Wait a few seconds, then click Done again.");
+        return;
+      }
+      if (res.status === 409) {
+        setLoginMsg("This sign-in session expired. Use “Try again” to restart capture.");
+        return;
+      }
+      if (!res.ok) {
+        setLoginMsg("Couldn't resume. Make sure you're fully signed in, then click Done again.");
+        return;
+      }
+      setLoginMsg("Signed in. Resuming capture…");
+    } catch {
+      setLoginMsg("Couldn't reach the server. Check your connection, then click Done again.");
+    }
   }
 
   const working = job && job.status !== "done" && job.status !== "error" && job.status !== "awaiting-login";
@@ -503,7 +529,7 @@ export default function Home() {
                   void relayKey(job.id, e.key);
                 }}
                 onWheel={(e) => {
-                  void relayScroll(job.id, e.deltaY);
+                  scrollCoalescerRef.current?.(e.deltaY);
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -560,6 +586,12 @@ export default function Home() {
                   Done, I&apos;m logged in →
                 </button>
               </div>
+
+              {loginMsg && (
+                <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--accent-2)", textAlign: "center", lineHeight: 1.5 }}>
+                  {loginMsg}
+                </p>
+              )}
 
               <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--text-faint)", textAlign: "center" }}>
                 Click inside the browser above to interact · Type to type · Scroll to scroll

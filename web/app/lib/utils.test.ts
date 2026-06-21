@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { sizeOf, deriveName } from "./utils";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { sizeOf, deriveName, createCoalescer } from "./utils";
 
 describe("sizeOf", () => {
   it("labels screenshot files as 1280 x 800", () => {
@@ -34,5 +34,39 @@ describe("deriveName", () => {
 
   it("falls back to 'extension.zip' for an empty list", () => {
     expect(deriveName([])).toBe("extension.zip");
+  });
+});
+
+describe("createCoalescer", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("collapses a burst of events into a single flush with the summed value", () => {
+    const flush = vi.fn();
+    const push = createCoalescer(flush, 100);
+
+    // Simulate one trackpad scroll gesture: 50 wheel events in quick succession.
+    for (let i = 0; i < 50; i++) push(10);
+
+    // Nothing sent yet — that's the point: 50 events must not be 50 requests.
+    expect(flush).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(100);
+    expect(flush).toHaveBeenCalledTimes(1);
+    expect(flush).toHaveBeenCalledWith(500);
+  });
+
+  it("flushes a later burst separately", () => {
+    const flush = vi.fn();
+    const push = createCoalescer(flush, 100);
+
+    push(5);
+    vi.advanceTimersByTime(100);
+    push(7);
+    vi.advanceTimersByTime(100);
+
+    expect(flush).toHaveBeenCalledTimes(2);
+    expect(flush).toHaveBeenNthCalledWith(1, 5);
+    expect(flush).toHaveBeenNthCalledWith(2, 7);
   });
 });
