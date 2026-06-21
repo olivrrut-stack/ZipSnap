@@ -59,9 +59,15 @@ function inspectKit(): CriterionResult[] {
     out.push(checkImage(`assets.${name}`, name, path.join(kitDir, name), want));
   }
 
-  // Icons
-  for (const [name, want] of Object.entries(EXPECTED.icons)) {
-    out.push(checkImage(`assets.${name}`, name, path.join(iconsDir, name), want));
+  // Icons are only produced by a real (AI) job. In default mode no job runs, so
+  // the folder won't exist — skip rather than fail (same stance as processing
+  // time). With --full (and an API key) they're generated and verified for real.
+  if (!existsSync(iconsDir)) {
+    out.push(skip("assets.icons", "icons at 128/48/32/16", "assets", "Run with --full (needs ANTHROPIC_API_KEY) to generate and verify icons."));
+  } else {
+    for (const [name, want] of Object.entries(EXPECTED.icons)) {
+      out.push(checkImage(`assets.${name}`, name, path.join(iconsDir, name), want));
+    }
   }
 
   // Copy completeness

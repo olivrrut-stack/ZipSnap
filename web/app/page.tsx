@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Footer from "./components/Footer";
-import Gallery from "./components/Gallery";
 import { sizeOf, deriveName, createCoalescer } from "./lib/utils";
+
+// The example-output gallery sits below the fold and is purely showcase, so load
+// it lazily to keep its JavaScript out of the initial bundle. The placeholder
+// reserves its height so nothing shifts when it mounts.
+const Gallery = dynamic(() => import("./components/Gallery"), {
+  ssr: false,
+  loading: () => <div aria-hidden style={{ minHeight: 470 }} />,
+});
 
 const WORKER = process.env.NEXT_PUBLIC_WORKER_URL ?? "http://localhost:4000";
 
