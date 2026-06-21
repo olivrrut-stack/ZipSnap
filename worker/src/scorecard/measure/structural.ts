@@ -13,10 +13,14 @@ export async function measureStructural(url: string): Promise<CriterionResult[]>
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
     const consoleErrors: string[] = [];
+    const failedRequests: string[] = [];
     page.on("console", (m: ConsoleMessage) => {
       if (m.type() === "error") consoleErrors.push(m.text());
     });
     page.on("pageerror", (e) => consoleErrors.push(e.message));
+    page.on("response", (res) => {
+      if (res.status() >= 400) failedRequests.push(`${res.status()} ${res.url()}`);
+    });
 
     await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
 
@@ -61,7 +65,14 @@ export async function measureStructural(url: string): Promise<CriterionResult[]>
     out.push(heroOk ? pass("ui.hero", "hero above the fold (headline + drop zone)", "structural", "above fold") : fail("ui.hero", "hero above the fold (headline + drop zone)", "structural", "below fold", "above fold", "Lift the headline and drop zone into the first screen."));
 
     // No console errors
-    out.push(consoleErrors.length === 0 ? pass("code.console", "no console errors on load", "code", "0 errors") : fail("code.console", "no console errors on load", "code", `${consoleErrors.length} error(s)`, "0", `First: ${consoleErrors[0]?.slice(0, 120)}`));
+    // Ignore environment noise that isn't a bug in our code: the Vercel Analytics
+    // beacon only exists on Vercel's edge (404s locally), and dev-only overlays.
+    const ignore = (s: string) => /_vercel\/insights|__nextjs_original-stack-frame|favicon\.ico/i.test(s);
+    const realFailed = failedRequests.filter((u) => !ignore(u));
+    const jsErrors = consoleErrors.filter((t) => !/failed to load resource/i.test(t));
+    const problems = jsErrors.length + realFailed.length;
+    const detail = jsErrors[0]?.slice(0, 100) ?? (realFailed[0] ? `Failed request: ${realFailed[0]}` : "");
+    out.push(problems === 0 ? pass("code.console", "no console errors on load", "code", "clean") : fail("code.console", "no console errors on load", "code", `${problems} issue(s)`, "0", detail));
 
     // Keyboard: pressing Tab moves focus to a real, visible control that shows a
     // focus ring. Uses a real Tab press (triggers :focus-visible), and targets
