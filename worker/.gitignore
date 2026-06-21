@@ -1,5 +1,6 @@
 node_modules/
 output/
+scorecard-report/
 .jobs/
 *.log
 .env

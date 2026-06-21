@@ -9,6 +9,7 @@
     "copy": "tsx src/generateCopy.ts",
     "render": "tsx src/renderKit.ts",
     "server": "tsx src/server.ts",
+    "score": "tsx src/scorecard/score.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "setup:browser": "playwright install chromium"
@@ -36,6 +37,8 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^22.10.0",
     "@types/ws": "^8.18.1",
+    "chrome-launcher": "^1.2.1",
+    "lighthouse": "^13.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.8"
