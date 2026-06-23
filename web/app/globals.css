@@ -29,8 +29,10 @@
   padding: 0;
 }
 
-html {
-  scroll-behavior: smooth;
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
@@ -1431,6 +1433,30 @@ textarea.cb-editable:focus {
 .tool-card-title { font-size: 22px; font-weight: 640; margin: 0; }
 .tool-card-desc { color: var(--text-dim); font-size: 14.5px; line-height: 1.55; margin: 0 0 8px; }
 .tool-card .btn { align-self: flex-start; }
+
+/* ---- hub trust strip (reassurance + what makes ZipSnap different) ---- */
+.trust-row {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 22px;
+  font-family: var(--font-mono), monospace;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  color: var(--text-dim);
+}
+.trust-row li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.trust-row svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
 
 /* ---- grader stats inputs ---- */
 .stats-row { margin-top: 16px; text-align: left; }

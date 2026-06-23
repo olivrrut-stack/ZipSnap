@@ -164,8 +164,17 @@ export default function KitGenerator() {
       const form = new FormData();
       form.append("extension", picked.blob, picked.name);
       if (screenshotUrl.trim()) form.append("customContentUrl", screenshotUrl.trim());
-      const res = await fetch(`${WORKER}/api/jobs`, { method: "POST", body: form });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Upload failed.");
+      let res: Response;
+      try {
+        res = await fetch(`${WORKER}/api/jobs`, { method: "POST", body: form });
+      } catch {
+        throw new Error("Can't reach ZipSnap's server. It may be starting up, give it a minute and try again.");
+      }
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))).error;
+        if (res.status === 503) throw new Error(body ?? "ZipSnap is slammed right now. Give it a minute and try again.");
+        throw new Error(body ?? "Upload failed.");
+      }
       const { jobId } = await res.json();
       for (;;) {
         await sleep(2000);
@@ -370,6 +379,10 @@ export default function KitGenerator() {
                   {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
                 />
               </div>
+
+              <p className="url-override-label">
+                Your unpacked extension folder or the .zip you&apos;d submit to the Web Store. Must contain manifest.json.
+              </p>
 
               {picked && (
                 <div className="url-override">
@@ -746,7 +759,7 @@ function Results({
       </nav>
 
       <div className="result-grid" id="kit-images">
-        {job.images.map((name) => (
+        {job.images.map((name, i) => (
           <div className="result-shot" key={name}>
             <div className="result-frame-bar">
               <span className="dot" />
@@ -756,7 +769,7 @@ function Results({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`${WORKER}/api/jobs/${job.id}/image/${name}`}
-              alt={name}
+              alt={`Generated store screenshot ${i + 1}`}
               onError={(e) => {
                 e.currentTarget.style.display = "none";
                 e.currentTarget.parentElement?.classList.add("img-error");
@@ -996,10 +1009,10 @@ function Results({
 
       <div className="email-capture">
         {emailSent ? (
-          <p className="email-sent">You&apos;re in. We&apos;ll let you know when paid tiers launch.</p>
+          <p className="email-sent">Thanks, we&apos;ll email you about new features and pricing.</p>
         ) : (
           <form className="email-form" onSubmit={submitEmail}>
-            <p className="email-label">Stay in the loop. Get notified when we launch.</p>
+            <p className="email-label">Get product updates.</p>
             <div className="email-row">
               <input
                 type="email"
@@ -1009,7 +1022,7 @@ function Results({
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Notify me</button>
+              <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Keep me posted</button>
             </div>
             {emailError && <p className="cb-error" style={{ marginTop: 4 }}>{emailError}</p>}
           </form>

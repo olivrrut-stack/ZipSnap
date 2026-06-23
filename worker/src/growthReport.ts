@@ -200,6 +200,12 @@ function normalizeTier(val: string): AcquisitionTier {
  * report (the SDK enforces the schema), with the tier normalized to a known value.
  */
 export async function generateGrowthReport(signals: GrowthSignals, userStats?: UserStats): Promise<GrowthReport> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error(
+      "No ANTHROPIC_API_KEY found. Put it in a .env file (ANTHROPIC_API_KEY=sk-ant-...).",
+    );
+  }
+
   const client = new Anthropic({ maxRetries: 4 });
 
   const response = await client.messages.parse({

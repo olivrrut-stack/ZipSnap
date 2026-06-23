@@ -55,8 +55,17 @@ export default function Grader() {
       if (users.trim()) form.append("users", users.trim());
       if (rating.trim()) form.append("rating", rating.trim());
       if (revenue.trim()) form.append("revenue", revenue.trim());
-      const res = await fetch(`${WORKER}/api/grade`, { method: "POST", body: form });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Grading failed.");
+      let res: Response;
+      try {
+        res = await fetch(`${WORKER}/api/grade`, { method: "POST", body: form });
+      } catch {
+        throw new Error("Can't reach ZipSnap's server. It may be starting up, give it a minute and try again.");
+      }
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))).error;
+        if (res.status === 503) throw new Error(body ?? "ZipSnap is slammed right now. Give it a minute and try again.");
+        throw new Error(body ?? "Grading failed.");
+      }
       const data = (await res.json()) as { report: GrowthReportData };
       setReport(data.report);
     } catch (err) {

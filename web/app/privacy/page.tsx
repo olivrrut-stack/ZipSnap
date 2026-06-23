@@ -92,7 +92,7 @@ export default function PrivacyPage() {
           <h2>Contact</h2>
           <p>
             Questions about this policy? Reach out via{" "}
-            <a href="https://github.com/olivrrut" target="_blank" rel="noreferrer">GitHub</a>{" "}
+            <a href="https://github.com/olivrrut-stack" target="_blank" rel="noreferrer">GitHub</a>{" "}
             or <a href="https://x.com/Y01909" target="_blank" rel="noreferrer">X</a>.
           </p>
         </div>

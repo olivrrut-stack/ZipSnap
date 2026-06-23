@@ -580,7 +580,16 @@ app.post("/api/grade", gradeLimiter, upload.single("extension"), async (req, res
     }
     const manifest = await readManifest(extPath);
     const signals = signalsFromManifest(extractMeta(manifest), detectSurfaces(manifest, extPath), checkManifestHealth(manifest));
-    const report = await generateGrowthReport(signals, parseUserStats(req.body));
+    let report;
+    try {
+      report = await generateGrowthReport(signals, parseUserStats(req.body));
+    } catch (err) {
+      // Never leak a raw SDK error (e.g. a 401 over an expired/missing API key)
+      // to the browser. Log it server-side, return a calm, plain-English message.
+      console.error("[grade] generateGrowthReport failed:", err);
+      res.status(500).json({ error: "Our grader is briefly unavailable. Please try again in a minute." });
+      return;
+    }
     res.json({ report });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Grading failed." });

@@ -67,6 +67,22 @@ export default function Home() {
               <Link className="btn btn-primary" href="/grade">Grade my extension →</Link>
             </div>
           </div>
+
+          <ul className="trust-row">
+            {[
+              "Captured from your real extension",
+              "Exact Web Store sizes",
+              "Files deleted within 24 hours",
+              "No account needed",
+            ].map((t) => (
+              <li key={t}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                {t}
+              </li>
+            ))}
+          </ul>
         </section>
 
         <Gallery />
