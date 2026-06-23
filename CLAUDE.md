@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-ZipSnap auto-generates a Chrome Web Store submission kit from an unpacked extension: screenshots, promo tiles, and AI-written store copy. The headline feature is **auto-capture** — ZipSnap loads the extension itself and screenshots its own UI.
+ZipSnap has two tools. (1) It auto-generates a Chrome Web Store submission kit from an unpacked extension: screenshots, promo tiles, AI-written store copy, and icons. (2) It grades an extension and writes a Growth & Acquisition Report. The headline feature is **auto-capture**: ZipSnap loads the extension itself and screenshots its own UI.
+
+UI/design note: the web app uses the actual Chrome logo colors (blue #4c8bf5, steel red #dd5144, sunshine yellow #ffcd46, mint green #1da462), a dark polished-chrome backdrop (`MetalBackdrop`), and primary buttons that rest as silver chrome and animate the Chrome rainbow only when live. Always invoke the `frontend-design` skill before any UI/visual change (user preference).
 
 ## Communication style
 
@@ -29,6 +31,9 @@ npm run spike -- --login "C:\path\to\extension"  # pause to sign in (CLI-only)
 npm run copy             # AI store listing: capture.json -> copy.json
 npm run render           # build image kit -> output/kit/
 npm run server           # HTTP API at http://localhost:4000
+npm run score            # quality scorecard (Lighthouse + structural + AI judge + code + assets)
+npm run score -- --url https://your-live-site.com   # grade a deployed site
+npm run score -- --full  # also run a real pipeline job and time it (needs API key)
 npm run typecheck
 npm test
 npm test -- contentTarget.test.ts
@@ -37,7 +42,7 @@ npm test -- contentTarget.test.ts
 ```bash
 cd web
 npm install
-npm run dev        # http://localhost:3000
+npm run dev        # http://localhost:3000  (routes: / hub, /generate kit, /grade grader)
 npm run typecheck
 npm test
 npm test -- utils.test.ts
@@ -57,13 +62,13 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 ## Architecture: pipeline (`worker/src/`)
 
-Core flow: **capture → AI copy → render**, via `runCapture`/`runRender` in `pipeline.ts`, shared by CLI and HTTP server.
+Core flow: **capture → AI copy → grade → render**, via `runCapture`/`runRender` in `pipeline.ts`, shared by CLI and HTTP server.
 
 **1. Capture** (`runCapture`)
-- `manifest.ts` — reads `manifest.json`, extracts metadata (`extractMeta`), detects surfaces (`detectSurfaces`): popup, options, content scripts. `checkManifestHealth` returns warnings/errors the UI surfaces.
+- `manifest.ts` — reads `manifest.json`, extracts metadata (`extractMeta`), detects surfaces (`detectSurfaces`): popup, options, content scripts, new-tab override pages (`chrome_url_overrides.newtab`), and MV3 side panels (`side_panel.default_path`). `checkManifestHealth` returns warnings/errors the UI surfaces.
 - `extensionContext.ts` — launches persistent Chrome with the extension loaded, resolves extension ID via background service worker. Extensions without a service worker get a stub injected via `withServiceWorker`.
 - `brandColor.ts` — extracts dominant brand color from the 128px icon.
-- `capture.ts` — screenshots each surface: `capturePopup` (tight crop), `captureOptions` (1280×800), `captureContentOverlay`. All screenshots go through `forceScreenshot`, which tries Playwright first (8s timeout) then falls back to a raw CDP `Page.captureScreenshot` call (10s timeout) — needed for heavy SPAs like LinkedIn that never reach Playwright's idle-paint state.
+- `capture.ts` — screenshots each surface: `capturePopup` (tight crop), `captureOptions` (1280×800), `captureNewTab` (full 1280×800, leads the kit when present), `captureSidePanel` (slim 400-wide panel), `captureContentOverlay`. All screenshots go through `forceScreenshot`, which tries Playwright first (8s timeout) then falls back to a raw CDP `Page.captureScreenshot` call (10s timeout), needed for heavy SPAs like LinkedIn that never reach Playwright's idle-paint state.
 - `contentTarget.ts` (`resolveContentTarget`) — for content scripts, uses the local demo page (`demoServer.ts`) for broad patterns (`<all_urls>`, `*` host), or visits the real site for specific patterns. `LANDING_HINTS` maps known sites to content-rich or login-walled entry URLs (e.g. `linkedin.com` → `/login`) so login detection fires correctly.
 - Login wall detection: if `captureContentOverlay` lands on a login page (password field, login URL pattern), it calls `opts.onLoginNeeded`. The server uses this to pause the job, stream the live browser to the user via WebSocket, and wait for the user to sign in. After login, if the browser is already on the target domain, navigation is skipped — the extension is already running on the post-login page. Only navigates to the domain root if somehow on a different domain.
 - Output: `capture.json` (`CaptureResult`, `ExtensionMeta`, `DetectedSurfaces`, `CapturedSurface` from `types.ts`).
@@ -71,8 +76,12 @@ Core flow: **capture → AI copy → render**, via `runCapture`/`runRender` in `
 **2. AI copy** (`copy.ts` / `generateStoreCopy`)
 - Sends `capture.json` to Claude → `StoreCopy`: title, short/long description, category, 5 screenshot headlines, 7 keywords, permissions analysis with flagged risks and listing justifications, privacy policy → `copy.json`.
 
+**2b. Growth report** (`growthReport.ts` / `generateGrowthReport`)
+- Grades the extension from manifest signals (`GrowthSignals`) plus optional user-reported stats (`UserStats`: users, rating, revenue) across four pillars (discoverability, acquisition readiness, product ideas, compliance) plus feature ideas → `GrowthReport` → `growth-report.json`. Clones the `copy.ts` pattern (one Claude call shaped by a strict Zod schema + anti-fabrication prompt). Best-effort inside the kit job; also exposed standalone via `POST /api/grade` (manifest-only, no browser, fast). `signalsFromCapture` / `signalsFromManifest` feed the same brief.
+
 **3. Render** (`runRender`, using `render.ts`)
 - `makeBrand` derives palette from `brandColor` (or a user-supplied override color). Pipeline: Satori → SVG → resvg-js → PNG. Typeface: Geist Mono.
+- Page surfaces (options, new-tab, content) get a mock browser-window frame; popup/side-panel get a floating card. New-tab leads (screenshot-1) when present.
 - Output in `output/kit/`: `screenshot-1..5.png` (1280×800), `small-promo-440x280.png`, `marquee-1400x560.png`.
 - `pngSize`/`saveVerified` assert exact Chrome Web Store pixel sizes before writing.
 
@@ -87,13 +96,15 @@ Stateless job model; client polls for status.
 
 **Core endpoints:**
 - `POST /api/jobs` — accepts `.zip` (multer, 25 MB limit, in-memory), runs zip-bomb guard (`inspectZip`), extracts to temp folder, locates `manifest.json` (`findManifestDir`), enqueues job. Returns `{ jobId }`.
-- `processJob` — runs `runCapture → generateStoreCopy → runRender → generateIcons`, then zips `kit/` + `icons/` + `descriptions.txt` into `zipsnap-kit.zip`.
-- `GET /api/jobs/:id` — poll status/step/error; returns `images`, `copy`, `manifestHealth`, `brandColor`, `iconKit` when done.
+- `processJob` — runs `runCapture → generateStoreCopy → generateGrowthReport (best-effort) → runRender → generateIcons`, then zips `kit/` + `icons/` + `descriptions.txt` + `growth-report.json/txt` into `zipsnap-kit.zip`. Accepts optional `userStats` on the upload.
+- `GET /api/jobs/:id` — poll status/step/error; returns `images`, `copy`, `growthReport`, `manifestHealth`, `brandColor`, `iconKit` when done.
+- `POST /api/grade` — standalone fast grader: manifest-only (no browser), optional `userStats`, returns `{ report }` synchronously. Powers the `/grade` page.
 - `GET /api/jobs/:id/image/:name` — serve a rendered kit image preview.
 - `GET /api/jobs/:id/icon/:name` — serve a generated icon preview.
 - `GET /api/jobs/:id/kit` — download the finished kit zip.
 - `POST /api/jobs/:id/rerender` — re-render the kit with a new brand color; returns updated image list.
 - `POST /api/jobs/:id/recopy` — re-run AI copy generation for a finished job; returns new copy.
+- `POST /api/jobs/:id/regenerate-report` — re-run the growth report (optionally with new `userStats`); returns `{ report }`.
 - `POST /api/subscribe` — log an email subscriber to Railway stdout as `[SUBSCRIBER]` JSON.
 
 **Browser interaction endpoints** (all rate-limited, only valid during `awaiting-login`):
@@ -118,21 +129,32 @@ Stateless job model; client polls for status.
 
 ## Architecture: web app (`web/app/`)
 
-- `page.tsx` — main UI. Upload (drop zip/folder or click to browse), poll status with 2s interval, show progress bar + elapsed timer, login panel with live browser view during `awaiting-login`, results panel with image grid, AI copy blocks, brand color picker (swatches + hex input), "Apply" re-render, "Regenerate copy", email capture form, kit download, "Generate another" / "Try again" buttons.
-- `lib/utils.ts` — `sizeOf` (filename → Chrome Web Store dimensions) and `deriveName` (names zip from dropped folder).
-- `components/Gallery.tsx` — animated ticker showcasing sample output tiles.
-- `components/Footer.tsx`, `LegalNav.tsx`.
+Three routes with a shared top nav/tab bar (`TopNav`):
+- `page.tsx` — `/` landing hub: launch/grow/sell lifecycle headline + two tool cards (Generate / Grade) + the example gallery. Lean; no upload here.
+- `generate/page.tsx` — renders `components/KitGenerator.tsx`, the full kit flow (was the old `page.tsx`): upload, poll status (2s), progress bar + elapsed timer, login panel with live browser view during `awaiting-login`, results panel (image grid, "Listing readiness" strip, AI copy blocks, growth report, icons, "Regenerate copy"/"Regenerate report", email capture, kit download). The Generate button gets `.btn-armed` (rainbow) once a zip is picked.
+- `grade/page.tsx` — renders `components/Grader.tsx`, the standalone grader: compact drop zone + optional stats inputs → `POST /api/grade` (synchronous, no polling) → `<GrowthReport>`.
+
+Shared components:
+- `components/GrowthReport.tsx` — gamified report visual (overall score ring, four pillar mini-rings, severity-striped recommendation cards, feature-idea deck). Used by both Grader and KitGenerator results.
+- `components/MetalBackdrop.tsx` — fixed polished-chrome backdrop (gunmetal base + grid + silver sheen + twinkling sparkles), rendered in `layout.tsx`.
+- `components/Gallery.tsx` — animated ticker of real sample output (MaterialYouNewTab). Sample images in `web/public/samples/`.
+- `components/Footer.tsx`, `LegalNav.tsx`, `TopNav.tsx`.
+- `lib/utils.ts` (`sizeOf`, `deriveName`), `lib/upload.ts` (shared drag/zip helpers: `readDrop`, `filterReal`, `zipFiles`).
 - `layout.tsx`, `robots.ts`, `sitemap.ts` — Open Graph, Twitter cards, sitemap, JSON-LD.
 
 **Key UI behaviors:**
 - Elapsed timer runs for the full job duration including `awaiting-login` pause.
 - During `awaiting-login`: WebSocket connects to `browser-stream`, frames are displayed as blob URLs (revoked on each new frame). Falls back to the HTTP snapshot endpoint until the first WS frame arrives.
 - On error: shows "Try again" (re-runs same extension) and "Try another extension" (clears state).
-- Color picker: 24 preset swatches + free hex input. "Apply" calls `rerender`; images fade to 40% opacity with a spinner while re-rendering.
+- Primary buttons rest as silver chrome; the Chrome rainbow animates only on hover/active/armed. Reduced motion is respected.
+
+## Quality scorecard (`worker/src/scorecard/`)
+
+`npm run score` (in `worker/`) grades the site + output against a fixed finish line and prints a PASS/FAIL scorecard with a readiness %, writing `worker/scorecard-report/latest.{json,md}` + `history.jsonl`. Tiers (each degrades gracefully): assets (exact Web Store sizes + completeness; `--full` runs a real job + times it), web-vitals (Lighthouse mobile), structural (drop zone, CTAs, footer, console, keyboard, mobile scroll), ai-judge (Claude vision scores the subjective design; needs API key), code (typecheck/test/build). `--url <live>` grades a deployed site. Single source of truth is `criteria.ts`. Caveat: localhost Lighthouse numbers are pessimistic; use `--url` for real ones.
 
 ## Testing
 
-Vitest unit tests (no browser needed): manifest parsing, content-target resolution, AI copy schema, PNG-size verification (`worker/src/`), file-naming/sizing helpers, component tests (`web/app/`). 47 worker tests, 13 web tests.
+Vitest unit tests (no browser needed): manifest parsing, content-target resolution, AI copy schema, growth-report schema + brief, PNG-size verification, scorecard math (`worker/src/`), file-naming/sizing helpers, component tests incl. GrowthReport (`web/app/`). 63 worker tests, 18 web tests.
 
 ## Skill routing
 
@@ -142,6 +164,7 @@ results than an ad-hoc answer. When in doubt, invoke the skill. A false positive
 cheaper than a false negative.
 
 Key routing rules:
+- ANY UI / visual change (layout, styling, components, colors, background, in-UI copy) → invoke /frontend-design FIRST, always, even small tweaks (user preference)
 - Product ideas, "is this worth building", brainstorming → invoke /office-hours
 - Strategy, scope, "think bigger", "what should we build" → invoke /plan-ceo-review
 - Architecture, "does this design make sense" → invoke /plan-eng-review
