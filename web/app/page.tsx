@@ -23,7 +23,7 @@ export default function Home() {
           <h1 className="hero-title">
             The place you <span className="v v--launch">launch</span>,{" "}
             <span className="v v--grow">grow</span>, and <span className="v v--sell">sell</span>{" "}
-            your Chrome extension.
+            your <span className="accent">Chrome extension</span>.
           </h1>
           <p className="subhead">
             Drop your <span className="mono">.zip</span> once. ZipSnap builds your store kit, then grades
