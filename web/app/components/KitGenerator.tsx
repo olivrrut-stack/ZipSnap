@@ -398,7 +398,7 @@ export default function KitGenerator() {
               )}
 
               <div className="cta-row" style={{ marginTop: 24 }}>
-                <button className="btn btn-primary" disabled={!picked || preparing} onClick={generate}>
+                <button className={`btn btn-primary${picked && !preparing ? " btn-armed" : ""}`} disabled={!picked || preparing} onClick={generate}>
                   Generate my kit →
                 </button>
               </div>

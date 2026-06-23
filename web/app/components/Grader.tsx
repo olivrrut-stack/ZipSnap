@@ -131,7 +131,7 @@ export default function Grader() {
               )}
 
               <div className="cta-row" style={{ marginTop: 24 }}>
-                <button className="btn btn-primary" disabled={!picked || preparing || grading} onClick={grade}>
+                <button className={`btn btn-primary${picked && !preparing && !grading ? " btn-armed" : ""}`} disabled={!picked || preparing || grading} onClick={grade}>
                   {grading ? "Grading…" : "Grade my extension →"}
                 </button>
               </div>
