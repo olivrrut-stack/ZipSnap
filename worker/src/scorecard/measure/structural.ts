@@ -24,14 +24,9 @@ export async function measureStructural(url: string): Promise<CriterionResult[]>
 
     await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
 
-    // Drop zone obvious
-    const dropZone = await page.evaluate(() => {
-      const byClass = document.querySelector(".dropzone");
-      const byInput = document.querySelector('input[type="file"]');
-      const byText = /drag your extension|drop a|drag and drop|drop your extension/i.test(document.body.innerText);
-      return Boolean(byClass || byInput || byText);
-    });
-    out.push(dropZone ? pass("ui.dropzone", "drag-and-drop zone is obvious", "structural", "present") : fail("ui.dropzone", "drag-and-drop zone is obvious", "structural", "not found", "present", "No clear drop zone on the homepage."));
+    // The drop zone and hero now live on the /generate tool page (the homepage is
+    // a hub), so those two checks navigate there below. Everything else is checked
+    // on the hub homepage.
 
     // Exactly one primary CTA
     const ctaCount = await page.evaluate(() => {
@@ -53,7 +48,16 @@ export async function measureStructural(url: string): Promise<CriterionResult[]>
     });
     out.push(footerOk ? pass("trust.footer", "professional footer with contact/about", "structural", "present") : fail("trust.footer", "professional footer with contact/about", "structural", "missing", "present", "Add a footer with about/contact/legal links."));
 
-    // Hero above the fold: headline + drop zone within first viewport
+    // Drop zone + hero on the /generate tool page (where the upload lives).
+    await page.goto(url.replace(/\/+$/, "") + "/generate", { waitUntil: "networkidle", timeout: 30_000 });
+    const dropZone = await page.evaluate(() => {
+      const byClass = document.querySelector(".dropzone");
+      const byInput = document.querySelector('input[type="file"]');
+      const byText = /drag your extension|drop a|drag and drop|drop your extension/i.test(document.body.innerText);
+      return Boolean(byClass || byInput || byText);
+    });
+    out.push(dropZone ? pass("ui.dropzone", "drag-and-drop zone is obvious (/generate)", "structural", "present") : fail("ui.dropzone", "drag-and-drop zone is obvious (/generate)", "structural", "not found", "present", "No clear drop zone on the /generate page."));
+
     const heroOk = await page.evaluate(() => {
       const h = document.querySelector("h1, .hero h1, .hero h2");
       const drop = document.querySelector(".dropzone, input[type=file]");
@@ -62,7 +66,7 @@ export async function measureStructural(url: string): Promise<CriterionResult[]>
       const dY = (drop.closest(".dropzone") ?? drop).getBoundingClientRect().top;
       return hY < 800 && dY < 800;
     });
-    out.push(heroOk ? pass("ui.hero", "hero above the fold (headline + drop zone)", "structural", "above fold") : fail("ui.hero", "hero above the fold (headline + drop zone)", "structural", "below fold", "above fold", "Lift the headline and drop zone into the first screen."));
+    out.push(heroOk ? pass("ui.hero", "hero above the fold (headline + drop zone, /generate)", "structural", "above fold") : fail("ui.hero", "hero above the fold (headline + drop zone, /generate)", "structural", "below fold", "above fold", "Lift the headline and drop zone into the first screen."));
 
     // No console errors
     // Ignore environment noise that isn't a bug in our code: the Vercel Analytics

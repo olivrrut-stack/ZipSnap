@@ -1321,3 +1321,125 @@ textarea.cb-editable:focus {
 .legal strong {
   color: var(--text);
 }
+
+/* ---- shared nav tabs ---- */
+.nav-tab {
+  color: var(--text-dim);
+  font-size: 14px;
+  text-decoration: none;
+  padding: 4px 2px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab--active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* ---- hub tool cards ---- */
+.tool-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 32px;
+  text-align: left;
+}
+@media (max-width: 720px) { .tool-cards { grid-template-columns: 1fr; } }
+.tool-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tool-card-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+.tool-card-title { font-size: 22px; font-weight: 640; margin: 0; }
+.tool-card-desc { color: var(--text-dim); font-size: 14.5px; line-height: 1.55; margin: 0 0 8px; }
+.tool-card .btn { align-self: flex-start; }
+
+/* ---- grader stats inputs ---- */
+.stats-row { margin-top: 16px; text-align: left; }
+.stats-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+@media (max-width: 560px) { .stats-inputs { grid-template-columns: 1fr; } }
+
+/* ---- growth report ---- */
+.gr { margin-top: 6px; }
+.gr-headline {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  margin-bottom: 14px;
+}
+.gr-score { font-size: 52px; font-weight: 720; line-height: 1; font-family: var(--font-mono), monospace; }
+.gr-score-max { font-size: 18px; color: var(--text-faint); font-weight: 400; }
+.gr-tier-wrap { display: flex; flex-direction: column; gap: 6px; }
+.gr-tier-badge {
+  align-self: flex-start;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(66,133,244,0.12);
+  color: var(--accent-2);
+  border: 1px solid rgba(66,133,244,0.25);
+}
+.gr-tier-rationale { font-size: 13.5px; color: var(--text-dim); line-height: 1.5; margin: 0; }
+.gr-pillar {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--bg);
+}
+.gr-pillar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.gr-pillar-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.gr-pillar-score { font-family: var(--font-mono), monospace; font-size: 14px; font-weight: 600; }
+.gr-pillar-summary { font-size: 14px; color: var(--text); line-height: 1.5; margin: 0 0 10px; }
+.gr-recs { display: flex; flex-direction: column; gap: 8px; }
+.gr-rec { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line-soft, var(--line)); background: var(--panel-2); }
+.gr-rec-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+.gr-rec-action { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+.gr-rec-rationale { font-size: 12.5px; color: var(--text-dim); line-height: 1.45; }
+.gr-priority {
+  flex-shrink: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.gr-priority--high { background: rgba(234,67,53,0.12); color: #ea4335; }
+.gr-priority--medium { background: rgba(251,188,5,0.14); color: var(--yellow); }
+.gr-priority--low { background: rgba(120,130,150,0.14); color: var(--text-faint); }
+.gr-ideas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 6px; }
+@media (max-width: 560px) { .gr-ideas { grid-template-columns: 1fr; } }
+.gr-idea { padding: 12px; border-radius: 8px; border: 1px solid var(--line-soft, var(--line)); background: var(--panel-2); }
+.gr-idea-title { font-size: 13.5px; font-weight: 640; color: var(--text); margin-bottom: 4px; }
+.gr-idea-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.45; margin-bottom: 4px; }
+.gr-idea-rationale { font-size: 11.5px; color: var(--text-faint); line-height: 1.4; font-style: italic; }
