@@ -738,7 +738,14 @@ function Results({
         </a>
       </div>
 
-      <div className="result-grid">
+      <nav className="kit-jump" aria-label="Jump to a section of your kit">
+        <span className="kit-jump-label">Jump to</span>
+        <a href="#kit-images">Images</a>
+        {copy && <a href="#kit-copy">Copy</a>}
+        {report && <a href="#kit-report">Report</a>}
+      </nav>
+
+      <div className="result-grid" id="kit-images">
         {job.images.map((name) => (
           <div className="result-shot" key={name}>
             <div className="result-frame-bar">
@@ -763,7 +770,7 @@ function Results({
 
       {copy && (
         <>
-          <div className="copy-section-head">
+          <div className="copy-section-head" id="kit-copy">
             <span className="copy-section-label">AI copy</span>
             <button className="btn-mini" onClick={regenerateCopy} disabled={recopying}>
               {recopying ? "Regenerating…" : "Regenerate copy"}
@@ -976,7 +983,7 @@ function Results({
 
       {report && (
         <>
-          <div className="copy-section-head">
+          <div className="copy-section-head" id="kit-report">
             <span className="copy-section-label">Growth &amp; acquisition report</span>
             <button className="btn-mini" onClick={regenerateReport} disabled={regenReport}>
               {regenReport ? "Regenerating…" : "Regenerate report"}

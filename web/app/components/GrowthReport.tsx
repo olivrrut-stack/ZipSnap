@@ -79,6 +79,7 @@ function ScoreRing({ score, size, stroke, big }: { score: number; size: number; 
         stroke={color}
         strokeWidth={stroke}
         strokeLinecap="round"
+        className="ring-arc"
         strokeDasharray={circ}
         strokeDashoffset={offset}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
