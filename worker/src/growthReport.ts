@@ -79,7 +79,7 @@ export interface GrowthSignals {
   description: string;
   manifestVersion: number;
   permissions: string[];
-  surfaces: { hasPopup: boolean; hasOptions: boolean; hasContentScripts: boolean };
+  surfaces: { hasPopup: boolean; hasOptions: boolean; hasContentScripts: boolean; hasNewTab: boolean; hasSidePanel: boolean };
   health: ManifestHealth;
   brandColor?: string;
 }
@@ -95,6 +95,8 @@ export function signalsFromCapture(capture: CaptureResult): GrowthSignals {
       hasPopup: capture.surfaces.popup.exists,
       hasOptions: capture.surfaces.options.exists,
       hasContentScripts: capture.surfaces.contentOverlay.exists,
+      hasNewTab: capture.surfaces.newTab.exists,
+      hasSidePanel: capture.surfaces.sidePanel.exists,
     },
     health: capture.manifestHealth,
     brandColor: capture.brandColor,
@@ -117,6 +119,8 @@ export function signalsFromManifest(
       hasPopup: surfaces.popup !== null,
       hasOptions: surfaces.optionsPage !== null,
       hasContentScripts: surfaces.hasContentScripts,
+      hasNewTab: surfaces.newTabPage !== null,
+      hasSidePanel: surfaces.sidePanel !== null,
     },
     health,
   };
@@ -132,6 +136,8 @@ export function buildGrowthBrief(signals: GrowthSignals, userStats?: UserStats):
   const surfaceList: string[] = [];
   if (signals.surfaces.hasPopup) surfaceList.push("toolbar popup");
   if (signals.surfaces.hasOptions) surfaceList.push("options/settings page");
+  if (signals.surfaces.hasNewTab) surfaceList.push("new-tab page takeover");
+  if (signals.surfaces.hasSidePanel) surfaceList.push("side panel");
   if (signals.surfaces.hasContentScripts) surfaceList.push("on-page content features");
 
   const errors = signals.health.issues.filter((i) => i.type === "error");

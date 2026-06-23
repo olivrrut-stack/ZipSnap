@@ -104,6 +104,8 @@ function buildBrief(capture: CaptureResult): string {
   const features: string[] = [];
   if (surfaces.popup.exists) features.push("Has a toolbar popup window.");
   if (surfaces.options.exists) features.push("Has an options/settings page.");
+  if (surfaces.newTab.exists) features.push("Replaces the browser's new-tab page with its own full-page UI.");
+  if (surfaces.sidePanel.exists) features.push("Has a browser side panel.");
   if (surfaces.contentOverlay.exists) {
     const where = surfaces.contentOverlay.source
       ? (() => {

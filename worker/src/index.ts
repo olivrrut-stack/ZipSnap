@@ -38,6 +38,8 @@ async function main(): Promise<void> {
   const captured = [
     s.popup.exists && "popup",
     s.options.exists && "options",
+    s.newTab.exists && "new-tab page",
+    s.sidePanel.exists && "side panel",
     s.contentOverlay.exists && "content overlay",
   ].filter(Boolean);
   ok(`Extension ID: ${result.extension.id}`);

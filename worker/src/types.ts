@@ -26,6 +26,8 @@ export interface ExtensionMeta {
 export interface DetectedSurfaces {
   popup: string | null; // relative path to popup html, if any
   optionsPage: string | null; // relative path to options page, if any
+  newTabPage: string | null; // relative path to a new-tab override page, if any
+  sidePanel: string | null; // relative path to a side panel page, if any
   hasContentScripts: boolean;
   /** Absolute path to the 128px icon on disk, if declared. */
   iconPath: string | null;
@@ -50,6 +52,8 @@ export interface CaptureResult {
   surfaces: {
     popup: CapturedSurface;
     options: CapturedSurface;
+    newTab: CapturedSurface;
+    sidePanel: CapturedSurface;
     contentOverlay: CapturedSurface;
   };
   manifestHealth: ManifestHealth;

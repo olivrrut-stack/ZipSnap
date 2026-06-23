@@ -62,10 +62,21 @@ describe("detectSurfaces", () => {
     expect(surfaces.optionsPage).toBe("settings.html");
   });
 
+  it("detects a new-tab override page and a side panel", () => {
+    const surfaces = detectSurfaces(
+      { chrome_url_overrides: { newtab: "index.html" }, side_panel: { default_path: "panel.html" } },
+      "/ext",
+    );
+    expect(surfaces.newTabPage).toBe("index.html");
+    expect(surfaces.sidePanel).toBe("panel.html");
+  });
+
   it("reports no surfaces for a bare manifest", () => {
     const surfaces = detectSurfaces({}, "/ext");
     expect(surfaces.popup).toBeNull();
     expect(surfaces.optionsPage).toBeNull();
+    expect(surfaces.newTabPage).toBeNull();
+    expect(surfaces.sidePanel).toBeNull();
     expect(surfaces.hasContentScripts).toBe(false);
     expect(surfaces.iconPath).toBeNull();
   });

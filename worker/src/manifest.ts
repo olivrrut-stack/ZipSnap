@@ -91,8 +91,12 @@ export function checkManifestHealth(manifest: any): ManifestHealth {
 
 /** Reports which UI surfaces exist, so we only try to capture real ones. */
 export function detectSurfaces(manifest: any, extensionPath: string): DetectedSurfaces {
-  const popup = manifest?.action?.default_popup ?? null;
+  const popup = manifest?.action?.default_popup ?? manifest?.browser_action?.default_popup ?? null;
   const optionsPage = manifest?.options_page ?? manifest?.options_ui?.page ?? null;
+  // Full-page new-tab takeover (a whole UI, screenshots beautifully).
+  const newTabPage = manifest?.chrome_url_overrides?.newtab ?? null;
+  // MV3 side panel.
+  const sidePanel = manifest?.side_panel?.default_path ?? manifest?.sidebar_action?.default_panel ?? null;
   const hasContentScripts =
     Array.isArray(manifest?.content_scripts) && manifest.content_scripts.length > 0;
 
@@ -105,5 +109,5 @@ export function detectSurfaces(manifest: any, extensionPath: string): DetectedSu
     null;
   const iconPath = icon128 ? path.join(extensionPath, icon128) : null;
 
-  return { popup, optionsPage, hasContentScripts, iconPath };
+  return { popup, optionsPage, newTabPage, sidePanel, hasContentScripts, iconPath };
 }

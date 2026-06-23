@@ -12,7 +12,7 @@ import type { Page } from "playwright";
 import { readManifest, extractMeta, detectSurfaces, checkManifestHealth } from "./manifest";
 import { launchExtension, resolveExtensionId, teardown } from "./extensionContext";
 import { extractBrandColor } from "./brandColor";
-import { capturePopup, captureOptions, captureContentOverlay } from "./capture";
+import { capturePopup, captureOptions, captureContentOverlay, captureNewTab, captureSidePanel } from "./capture";
 import { makeBrand, renderScreenshot, renderTile, type ShotFrame } from "./render";
 import { analyzeLayout } from "./layoutSpec";
 import { generateTileBackground } from "./tileBackground";
@@ -128,11 +128,13 @@ export async function runCapture(
     });
     const popup = await capturePopup(loaded.context, extensionId, surfaces.popup, outputDir);
     const options = await captureOptions(loaded.context, extensionId, surfaces.optionsPage, outputDir);
+    const newTab = await captureNewTab(loaded.context, extensionId, surfaces.newTabPage, outputDir);
+    const sidePanel = await captureSidePanel(loaded.context, extensionId, surfaces.sidePanel, outputDir);
 
     const result: CaptureResult = {
       extension: { id: extensionId, ...meta },
       brandColor,
-      surfaces: { popup, options, contentOverlay },
+      surfaces: { popup, options, newTab, sidePanel, contentOverlay },
       manifestHealth,
       capturedAt: new Date().toISOString(),
     };
@@ -182,7 +184,10 @@ export async function runRender(
   // the options and content-overlay shots get a mock browser window. The label
   // becomes the browser address bar (a friendly name for options, the real URL
   // for the content overlay).
+  // Order matters: the first surfaces become screenshot-1, screenshot-2, ... The
+  // full-page new-tab takeover is the most impressive, so it leads when present.
   const surfaces: { surface: CapturedSurface; frame: ShotFrame; label: string }[] = [
+    { surface: capture.surfaces.newTab, frame: "page", label: capture.extension.name },
     { surface: capture.surfaces.popup, frame: "popup", label: capture.extension.name },
     { surface: capture.surfaces.options, frame: "page", label: "Extension Settings" },
     {
@@ -190,6 +195,7 @@ export async function runRender(
       frame: "page",
       label: capture.surfaces.contentOverlay.source ?? capture.extension.name,
     },
+    { surface: capture.surfaces.sidePanel, frame: "popup", label: "Side Panel" },
   ];
   const shots = surfaces
     .filter(({ surface }) => surface.exists && surface.screenshot && surface.size)

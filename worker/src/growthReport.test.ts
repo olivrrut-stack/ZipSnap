@@ -71,7 +71,7 @@ const baseSignals: GrowthSignals = {
   description: "A demo extension.",
   manifestVersion: 2,
   permissions: ["<all_urls>", "tabs"],
-  surfaces: { hasPopup: true, hasOptions: false, hasContentScripts: true },
+  surfaces: { hasPopup: true, hasOptions: false, hasContentScripts: true, hasNewTab: false, hasSidePanel: false },
   health: { issues: [{ type: "error", code: "MV2_DEPRECATED", message: "Manifest V2 is deprecated.", fix: "Upgrade to V3." }] },
 };
 
@@ -98,14 +98,14 @@ describe("buildGrowthBrief", () => {
 
 describe("signalsFromManifest", () => {
   it("maps detected surfaces to booleans", () => {
-    const surfaces: DetectedSurfaces = { popup: "popup.html", optionsPage: null, hasContentScripts: true, iconPath: null };
+    const surfaces: DetectedSurfaces = { popup: "popup.html", optionsPage: null, newTabPage: null, sidePanel: null, hasContentScripts: true, iconPath: null };
     const health: ManifestHealth = { issues: [] };
     const signals = signalsFromManifest(
       { name: "X", description: "d", version: "1.0.0", manifestVersion: 3, permissions: ["storage"] },
       surfaces,
       health,
     );
-    expect(signals.surfaces).toEqual({ hasPopup: true, hasOptions: false, hasContentScripts: true });
+    expect(signals.surfaces).toEqual({ hasPopup: true, hasOptions: false, hasContentScripts: true, hasNewTab: false, hasSidePanel: false });
     expect(signals.permissions).toEqual(["storage"]);
   });
 });

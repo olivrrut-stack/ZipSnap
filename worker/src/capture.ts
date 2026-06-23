@@ -161,6 +161,61 @@ export async function captureOptions(
 }
 
 /**
+ * Captures a new-tab override page as a full browser-window view (1280x800).
+ * Many extensions replace the new tab with a whole UI, which screenshots well.
+ */
+export async function captureNewTab(
+  context: BrowserContext,
+  extensionId: string,
+  newTabRel: string | null,
+  outputDir: string,
+): Promise<CapturedSurface> {
+  if (!newTabRel) return { exists: false, source: null, screenshot: null, size: null };
+
+  const url = `chrome-extension://${extensionId}/${newTabRel}`;
+  info(`Opening new-tab page: ${url}`);
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize(VIEWPORT);
+    await page.goto(url, { waitUntil: "load" });
+    await page.waitForTimeout(800);
+    const file = "newtab.png";
+    await forceScreenshot(page, path.join(outputDir, file));
+    ok(`New-tab page captured (${VIEWPORT.width}x${VIEWPORT.height}) -> ${file}`);
+    return { exists: true, source: newTabRel, screenshot: file, size: { ...VIEWPORT } };
+  } finally {
+    await page.close();
+  }
+}
+
+/** Side panels are narrow, so shoot the whole panel in a slim viewport. */
+const SIDE_PANEL = { width: 400, height: 760 };
+
+export async function captureSidePanel(
+  context: BrowserContext,
+  extensionId: string,
+  sidePanelRel: string | null,
+  outputDir: string,
+): Promise<CapturedSurface> {
+  if (!sidePanelRel) return { exists: false, source: null, screenshot: null, size: null };
+
+  const url = `chrome-extension://${extensionId}/${sidePanelRel}`;
+  info(`Opening side panel: ${url}`);
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize(SIDE_PANEL);
+    await page.goto(url, { waitUntil: "load" });
+    await page.waitForTimeout(500);
+    const file = "sidepanel.png";
+    await forceScreenshot(page, path.join(outputDir, file));
+    ok(`Side panel captured (${SIDE_PANEL.width}x${SIDE_PANEL.height}) -> ${file}`);
+    return { exists: true, source: sidePanelRel, screenshot: file, size: { ...SIDE_PANEL } };
+  } finally {
+    await page.close();
+  }
+}
+
+/**
  * Best-effort dismissal of cookie / consent banners on real sites, so they
  * don't sit on top of the screenshot. Tries a few common button labels and
  * quietly gives up if none are found.
