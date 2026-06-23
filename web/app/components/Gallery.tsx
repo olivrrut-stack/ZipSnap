@@ -21,7 +21,7 @@ function getS(large: boolean) {
   const f = large ? 1.55 : 1;
   const p = large ? 24 : 14;
   return {
-    wrap: { padding: p, height: "100%", overflow: "hidden" } as React.CSSProperties,
+    wrap: { padding: p, height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center" } as React.CSSProperties,
     label: { fontFamily: "var(--font-mono), monospace", fontSize: 10 * f, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: "var(--accent-2)", marginBottom: 5 * f },
     text: { fontSize: 13 * f, color: "var(--text)", lineHeight: 1.4 } as React.CSSProperties,
     textDim: { fontSize: 12.5 * f, color: "var(--text-dim)", lineHeight: 1.45 } as React.CSSProperties,
@@ -40,7 +40,7 @@ function ContentBody({ type, large = false }: { type: "store" | "keywords" | "pe
   const f = large ? 1.55 : 1;
 
   if (type === "store") return (
-    <div style={S.wrap}>
+    <div style={{ ...S.wrap, justifyContent: "flex-start" }}>
       <div style={S.label}>Store Title</div>
       <div style={{ ...S.text, fontWeight: 580, lineHeight: 1.3, marginBottom: 10 * f }}>{STORE_TITLE}</div>
       <div style={S.sep} />
@@ -97,8 +97,9 @@ function ContentBody({ type, large = false }: { type: "store" | "keywords" | "pe
                 <div style={{
                   width: px, height: px,
                   borderRadius: Math.round(px * 0.22),
-                  background: "linear-gradient(135deg, #6f5de7 0%, #4c8bf5 100%)",
-                  border: "1px solid rgba(111,93,231,0.35)",
+                  background: "linear-gradient(135deg, #4c8bf5 0%, #8ab4f8 100%)",
+                  border: "1px solid rgba(76,139,245,0.4)",
+                  boxShadow: "0 6px 16px rgba(76,139,245,0.28), inset 0 1px 0 rgba(255,255,255,0.35)",
                   display: "grid", placeItems: "center",
                   color: "#fff",
                   fontSize: Math.max(Math.round(px * 0.42), 9),
@@ -174,7 +175,7 @@ export default function Gallery() {
                   <span className="dot" />
                   <span className="dot" />
                 </div>
-                <div className="ticker-body">
+                <div className={t.kind === "content" ? "ticker-body ticker-body--content" : "ticker-body"}>
                   {t.kind === "image" ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={t.src} alt={i < TILES.length ? t.caption : ""} loading="lazy" decoding="async" />
@@ -195,7 +196,7 @@ export default function Gallery() {
       {tile && (
         <div className="tile-modal-backdrop" onClick={() => setSelected(null)}>
           <div
-            className={`tile-modal${tile.kind === "image" ? " tile-modal--image" : " tile-modal--content"}`}
+            className={`tile-modal${tile.kind === "image" ? " tile-modal--image" : " tile-modal--content tile-modal--richbg"}`}
             onClick={(e) => e.stopPropagation()}
           >
             <button className="tile-modal-close" onClick={() => setSelected(null)} aria-label="Close">
