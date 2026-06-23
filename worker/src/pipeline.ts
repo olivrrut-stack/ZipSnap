@@ -15,7 +15,6 @@ import { extractBrandColor } from "./brandColor";
 import { capturePopup, captureOptions, captureContentOverlay, captureNewTab, captureSidePanel } from "./capture";
 import { makeBrand, renderScreenshot, renderTile, type ShotFrame } from "./render";
 import { analyzeLayout } from "./layoutSpec";
-import { generateTileBackground } from "./tileBackground";
 import { ok } from "./log";
 import type { CaptureResult, CapturedSurface } from "./types";
 import type { StoreCopy } from "./copy";
@@ -232,18 +231,17 @@ export async function runRender(
 
   onStep("Rendering promo tiles");
   const tagline = copy.slideHeadlines[0] ?? copy.shortDescription;
-  // Best-effort generated backdrop, shared by both tiles. undefined = use the gradient.
-  const backgroundDataUrl = (await generateTileBackground(brand.color)) ?? undefined;
+  // Tiles use the on-brand mesh backdrop built from the brand color (no external image).
   files.push(
     await saveVerified(
-      await renderTile({ brand, name: capture.extension.name, tagline, width: 440, height: 280, backgroundDataUrl }),
+      await renderTile({ brand, name: capture.extension.name, tagline, width: 440, height: 280 }),
       path.join(kitDir, "small-promo-440x280.png"),
       { width: 440, height: 280 },
     ),
   );
   files.push(
     await saveVerified(
-      await renderTile({ brand, name: capture.extension.name, tagline, width: 1400, height: 560, backgroundDataUrl }),
+      await renderTile({ brand, name: capture.extension.name, tagline, width: 1400, height: 560 }),
       path.join(kitDir, "marquee-1400x560.png"),
       { width: 1400, height: 560 },
     ),

@@ -80,8 +80,9 @@ Core flow: **capture → AI copy → grade → render**, via `runCapture`/`runRe
 - Grades the extension from manifest signals (`GrowthSignals`) plus optional user-reported stats (`UserStats`: users, rating, revenue) across four pillars (discoverability, acquisition readiness, product ideas, compliance) plus feature ideas → `GrowthReport` → `growth-report.json`. Clones the `copy.ts` pattern (one Claude call shaped by a strict Zod schema + anti-fabrication prompt). Best-effort inside the kit job; also exposed standalone via `POST /api/grade` (manifest-only, no browser, fast). `signalsFromCapture` / `signalsFromManifest` feed the same brief.
 
 **3. Render** (`runRender`, using `render.ts`)
-- `makeBrand` derives palette from `brandColor` (or a user-supplied override color). Pipeline: Satori → SVG → resvg-js → PNG. Typeface: Geist Mono.
-- Page surfaces (options, new-tab, content) get a mock browser-window frame; popup/side-panel get a floating card. New-tab leads (screenshot-1) when present.
+- `makeBrand` derives a full palette from `brandColor` (or a user override): a dark brand-tinted **mesh-gradient** backdrop (`mesh` — soft overlapping radial color blobs over a deep diagonal base, not a flat fade), a brand `glow` halo, and a light `tint` accent. Pipeline: Satori → SVG → resvg-js → PNG. Type: **Geist Sans** for display headlines/names, **Geist Mono** for eyebrows/labels/the address bar. "Premium SaaS" look.
+- Page surfaces (options, new-tab, content) get a mock browser-window frame; popup/side-panel get a floating card. Both float on the mesh with a glow halo behind and a deep layered drop shadow (`WINDOW_SHADOW` — no negative box-shadow spread, which crashes resvg). New-tab leads (screenshot-1) when present.
+- Promo tiles use the same mesh backdrop (eyebrow + display name + accent rule + tagline); the old AI tile-background helper was removed.
 - Output in `output/kit/`: `screenshot-1..5.png` (1280×800), `small-promo-440x280.png`, `marquee-1400x560.png`.
 - `pngSize`/`saveVerified` assert exact Chrome Web Store pixel sizes before writing.
 

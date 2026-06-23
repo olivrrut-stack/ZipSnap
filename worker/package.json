@@ -17,6 +17,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
     "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/geist-sans": "^5.2.5",
     "@resvg/resvg-js": "^2.6.2",
     "adm-zip": "^0.5.17",
     "cors": "^2.8.6",
