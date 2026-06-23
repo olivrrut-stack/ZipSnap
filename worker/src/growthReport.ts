@@ -208,10 +208,12 @@ export async function generateGrowthReport(signals: GrowthSignals, userStats?: U
 
   const client = new Anthropic({ maxRetries: 4 });
 
+  // The grader is a fast, free triage, so it favors speed over deep reasoning:
+  // no extended thinking, low reasoning effort, and a token cap sized to the
+  // report (the schema keeps the output grounded and complete either way).
   const response = await client.messages.parse({
     model: "claude-sonnet-4-6",
-    max_tokens: 16000,
-    thinking: { type: "adaptive" },
+    max_tokens: 6000,
     system: GROWTH_SYSTEM_PROMPT,
     messages: [
       {
@@ -221,7 +223,7 @@ export async function generateGrowthReport(signals: GrowthSignals, userStats?: U
     ],
     output_config: {
       format: zodOutputFormat(GrowthReportSchema),
-      effort: "medium",
+      effort: "low",
     },
   });
 
