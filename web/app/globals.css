@@ -34,15 +34,24 @@ html {
 }
 
 body {
-  background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans), system-ui, sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  /* Brushed-metal / "chrome" backdrop: a gunmetal base, a bright silver sheen up
+     top like a light catching polished metal, a soft diagonal reflection, and a
+     faint technical grid. Dark enough to keep the white UI readable. */
+  background-color: #0a0b0e;
   background-image:
-    radial-gradient(860px 480px at 50% -10%, rgba(76, 139, 245, 0.13), transparent 70%),
-    radial-gradient(580px 380px at 83% 3%, rgba(29, 164, 98, 0.08), transparent 72%);
-  background-repeat: no-repeat;
+    linear-gradient(rgba(197, 207, 221, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(197, 207, 221, 0.03) 1px, transparent 1px),
+    linear-gradient(116deg, transparent 28%, rgba(222, 230, 242, 0.07) 49%, transparent 66%),
+    radial-gradient(560px 250px at 50% -2%, rgba(234, 240, 250, 0.14), transparent 70%),
+    radial-gradient(1240px 640px at 50% -14%, rgba(208, 218, 232, 0.21), transparent 72%),
+    radial-gradient(820px 480px at 85% 0%, rgba(150, 166, 192, 0.11), transparent 72%),
+    linear-gradient(180deg, #16181f 0%, #0a0b0e 58%);
+  background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
 .mono {
