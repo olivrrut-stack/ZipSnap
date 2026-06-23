@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { SITE_URL } from "./lib/site";
+import MetalBackdrop from "./components/MetalBackdrop";
 
 // display: "swap" so text paints immediately with a fallback instead of blocking
 // on the web font. Only the display font is preloaded: it styles the hero
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable} ${spaceGrotesk.variable}`}>
       <body>
+        <MetalBackdrop />
         {children}
         <script
           type="application/ld+json"
