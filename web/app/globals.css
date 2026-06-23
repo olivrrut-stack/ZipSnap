@@ -1372,7 +1372,10 @@ textarea.cb-editable:focus {
 /* ---- shared nav tabs ---- */
 .nav-tab {
   color: var(--text-dim);
-  font-size: 14px;
+  font-family: var(--font-mono), monospace;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   text-decoration: none;
   padding: 4px 2px;
   border-bottom: 2px solid transparent;
