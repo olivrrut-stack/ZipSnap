@@ -27,8 +27,8 @@ function getS(large: boolean) {
     textDim: { fontSize: 12.5 * f, color: "var(--text-dim)", lineHeight: 1.45 } as React.CSSProperties,
     sep: { borderTop: "1px solid var(--line)", margin: `${10 * f}px 0` } as React.CSSProperties,
     chip: { display: "inline-block", fontSize: 11 * f, padding: `${2 * f}px ${8 * f}px`, borderRadius: 999, border: "1px solid var(--line)", background: "var(--panel-2)", color: "var(--text-dim)", margin: `${2 * f}px ${2 * f}px` } as React.CSSProperties,
-    safeItem: { display: "inline-block", fontSize: 11 * f, fontFamily: "var(--font-mono), monospace", padding: `${2 * f}px ${7 * f}px`, borderRadius: 6 * f, border: "1px solid rgba(52,168,83,0.25)", background: "rgba(52,168,83,0.08)", color: "#34a853", margin: `${2 * f}px ${2 * f}px` } as React.CSSProperties,
-    flagBox: { padding: `${8 * f}px ${10 * f}px`, borderRadius: 8 * f, border: "1px solid rgba(251,188,5,0.25)", background: "rgba(251,188,5,0.06)", marginTop: 8 * f } as React.CSSProperties,
+    safeItem: { display: "inline-block", fontSize: 11 * f, fontFamily: "var(--font-mono), monospace", padding: `${2 * f}px ${7 * f}px`, borderRadius: 6 * f, border: "1px solid rgba(29,164,98,0.25)", background: "rgba(29,164,98,0.08)", color: "#1da462", margin: `${2 * f}px ${2 * f}px` } as React.CSSProperties,
+    flagBox: { padding: `${8 * f}px ${10 * f}px`, borderRadius: 8 * f, border: "1px solid rgba(255,205,70,0.25)", background: "rgba(255,205,70,0.06)", marginTop: 8 * f } as React.CSSProperties,
     flagHeader: { fontFamily: "var(--font-mono), monospace", fontSize: 11 * f, fontWeight: 600, color: "var(--yellow)", marginBottom: 3 * f } as React.CSSProperties,
     flagReason: { fontSize: 11 * f, color: "var(--text-dim)", marginBottom: 3 * f } as React.CSSProperties,
     flagFix: { fontSize: 11 * f, color: "var(--accent-2)" } as React.CSSProperties,
@@ -48,7 +48,7 @@ function ContentBody({ type, large = false }: { type: "store" | "keywords" | "pe
       <div style={S.textDim}>{SHORT_DESC}</div>
       <div style={S.sep} />
       <div style={S.label}>Category</div>
-      <span style={{ display: "inline-block", fontSize: 12 * f, padding: `${4 * f}px ${10 * f}px`, borderRadius: 8 * f, border: "1px solid var(--line)", background: "rgba(66,133,244,0.10)", color: "var(--text)" }}>Productivity</span>
+      <span style={{ display: "inline-block", fontSize: 12 * f, padding: `${4 * f}px ${10 * f}px`, borderRadius: 8 * f, border: "1px solid var(--line)", background: "rgba(76,139,245,0.10)", color: "var(--text)" }}>Productivity</span>
     </div>
   );
 
@@ -97,7 +97,7 @@ function ContentBody({ type, large = false }: { type: "store" | "keywords" | "pe
                 <div style={{
                   width: px, height: px,
                   borderRadius: Math.round(px * 0.22),
-                  background: "linear-gradient(135deg, #6f5de7 0%, #4285f4 100%)",
+                  background: "linear-gradient(135deg, #6f5de7 0%, #4c8bf5 100%)",
                   border: "1px solid rgba(111,93,231,0.35)",
                   display: "grid", placeItems: "center",
                   color: "#fff",

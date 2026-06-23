@@ -480,7 +480,7 @@ export default function KitGenerator() {
                   top: 8,
                   right: 8,
                   background: "rgba(0,0,0,0.55)",
-                  color: "#22c55e",
+                  color: "#1da462",
                   fontSize: 11,
                   padding: "2px 10px",
                   borderRadius: 99,
