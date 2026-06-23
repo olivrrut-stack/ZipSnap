@@ -23,6 +23,14 @@ import { WebSocketServer, WebSocket as WS } from "ws";
 import { runCapture, runRender, isValidHex } from "./pipeline";
 import { generateStoreCopy, type StoreCopy } from "./copy";
 import { generateIcons } from "./iconGeneration";
+import { readManifest, extractMeta, detectSurfaces, checkManifestHealth } from "./manifest";
+import {
+  generateGrowthReport,
+  signalsFromCapture,
+  signalsFromManifest,
+  type GrowthReport,
+  type UserStats,
+} from "./growthReport";
 import type { CaptureResult } from "./types";
 import type { Page, CDPSession } from "playwright";
 
@@ -60,6 +68,8 @@ interface Job {
   images: string[];
   capture?: CaptureResult;
   copy?: StoreCopy;
+  growthReport?: GrowthReport;
+  userStats?: UserStats;
   iconsDir?: string;
   iconFiles?: string[];
   customContentUrl?: string;
@@ -168,6 +178,50 @@ function descriptionsText(name: string, copy: StoreCopy): string {
   ].join("\n");
 }
 
+/** Pulls optional self-reported numbers from a request body. Drops anything invalid. */
+function parseUserStats(body: any): UserStats | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const num = (v: any): number | undefined => {
+    const n = typeof v === "string" ? parseFloat(v) : typeof v === "number" ? v : NaN;
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
+  const users = num(body.users);
+  const ratingRaw = num(body.rating);
+  const rating = ratingRaw != null && ratingRaw <= 5 ? ratingRaw : undefined;
+  const revenue = num(body.revenue);
+  if (users == null && rating == null && revenue == null) return undefined;
+  return { users, rating, revenue };
+}
+
+/** Human-readable version of the growth report, included in the kit zip. */
+function growthReportText(name: string, report: GrowthReport): string {
+  const pillar = (label: string, p: GrowthReport["pillars"]["discoverability"]): string =>
+    [
+      `${label} — ${p.score}/100`,
+      `  ${p.summary}`,
+      ...p.recommendations.map((r) => `  [${r.priority}] ${r.action} — ${r.rationale}`),
+    ].join("\n");
+  return [
+    `GROWTH & ACQUISITION REPORT — ${name}`,
+    ``,
+    `Overall score: ${report.overallScore}/100`,
+    `Acquisition tier: ${report.acquisitionTier}`,
+    `  ${report.tierRationale}`,
+    ``,
+    pillar("DISCOVERABILITY & CONVERSION", report.pillars.discoverability),
+    ``,
+    pillar("ACQUISITION READINESS", report.pillars.acquisitionReadiness),
+    ``,
+    pillar("PRODUCT IDEAS", report.pillars.productIdeas),
+    ``,
+    pillar("COMPLIANCE & REJECTION RISK", report.pillars.compliance),
+    ``,
+    `FEATURE IDEAS:`,
+    ...report.featureIdeas.map((f) => `  - ${f.title}: ${f.description} (${f.rationale})`),
+    ``,
+  ].join("\n");
+}
+
 /** Zips the kit and icon folders into a single downloadable archive. */
 async function packageKit(job: Job, kitDir: string, iconsDir: string | undefined): Promise<void> {
   const zip = new AdmZip();
@@ -177,6 +231,13 @@ async function packageKit(job: Job, kitDir: string, iconsDir: string | undefined
     "descriptions.txt",
     Buffer.from(descriptionsText(job.capture!.extension.name, job.copy!), "utf8"),
   );
+  if (job.growthReport) {
+    zip.addFile("growth-report.json", Buffer.from(JSON.stringify(job.growthReport, null, 2), "utf8"));
+    zip.addFile(
+      "growth-report.txt",
+      Buffer.from(growthReportText(job.capture!.extension.name, job.growthReport), "utf8"),
+    );
+  }
   const zipPath = path.join(job.dir, "zipsnap-kit.zip");
   zip.writeZip(zipPath);
   job.kitZipPath = zipPath;
@@ -243,6 +304,17 @@ async function processJob(job: Job): Promise<void> {
     const copy = await generateStoreCopy(capture);
     job.copy = copy;
     await writeFile(path.join(job.outputDir, "copy.json"), JSON.stringify(copy, null, 2), "utf8");
+
+    // Growth & acquisition grade — best-effort, like icon generation, so a
+    // grading failure never fails the kit.
+    job.step = "Grading growth & acquisition";
+    try {
+      const report = await generateGrowthReport(signalsFromCapture(capture), job.userStats);
+      job.growthReport = report;
+      await writeFile(path.join(job.outputDir, "growth-report.json"), JSON.stringify(report, null, 2), "utf8");
+    } catch {
+      // best-effort
+    }
 
     job.status = "rendering";
     const { kitDir, files } = await runRender(capture, copy, job.outputDir, (s) => (job.step = s), DEFAULT_COLOR);
@@ -455,6 +527,7 @@ app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, 
       outputDir: path.join(dir, "output"),
       images: [],
       customContentUrl,
+      userStats: parseUserStats(req.body),
     };
     jobs.set(id, job);
     pendingQueue.push(job); // wait for a free slot; client polls for status
@@ -464,6 +537,55 @@ app.post("/api/jobs", createJobLimiter, upload.single("extension"), async (req, 
     res.status(202).json({ jobId: id });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Upload failed." });
+  }
+});
+
+const gradeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many grade requests. Please try again later." },
+});
+
+// Standalone fast grader: grades an extension from its manifest only (no browser
+// capture, no kit), returning a Growth & Acquisition Report synchronously.
+app.post("/api/grade", gradeLimiter, upload.single("extension"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "No file uploaded. Send a .zip in the 'extension' field." });
+    return;
+  }
+  let zip: AdmZip;
+  try {
+    zip = new AdmZip(req.file.buffer);
+  } catch {
+    res.status(400).json({ error: "Invalid or corrupt zip file." });
+    return;
+  }
+  const guard = inspectZip(zip, req.file.size);
+  if (!guard.ok) {
+    res.status(guard.status ?? 413).json({ error: guard.error });
+    return;
+  }
+
+  const tmp = path.join(os.tmpdir(), "zipsnap-grade", randomUUID());
+  const extRoot = path.join(tmp, "extension");
+  try {
+    await mkdir(extRoot, { recursive: true });
+    zip.extractAllTo(extRoot, true);
+    const extPath = findManifestDir(extRoot);
+    if (!extPath) {
+      res.status(400).json({ error: "No manifest.json found in that zip — is it an unpacked extension?" });
+      return;
+    }
+    const manifest = await readManifest(extPath);
+    const signals = signalsFromManifest(extractMeta(manifest), detectSurfaces(manifest, extPath), checkManifestHealth(manifest));
+    const report = await generateGrowthReport(signals, parseUserStats(req.body));
+    res.json({ report });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Grading failed." });
+  } finally {
+    await rm(tmp, { recursive: true, force: true }).catch(() => {});
   }
 });
 
@@ -484,6 +606,7 @@ app.get("/api/jobs/:id", (req, res) => {
     brandColor: job.capture?.brandColor,
     images: job.status === "done" ? job.images : [],
     copy: job.status === "done" ? job.copy : undefined,
+    growthReport: job.status === "done" ? job.growthReport : undefined,
     manifestHealth: job.status === "done" ? job.capture?.manifestHealth : undefined,
     iconKit: job.status === "done" && job.iconFiles?.length
       ? { files: job.iconFiles }
@@ -770,6 +893,37 @@ app.post("/api/jobs/:id/recopy", rerecopyLimiter, async (req: express.Request<{ 
     job.status = prevStatus;
     job.step = "Done";
     res.status(500).json({ error: err instanceof Error ? err.message : "Recopy failed." });
+  }
+});
+
+const regenerateReportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many regeneration requests. Please wait a moment." },
+});
+
+// Regenerate the growth report for a finished job, optionally with new numbers.
+app.post("/api/jobs/:id/regenerate-report", regenerateReportLimiter, express.json(), async (req: express.Request<{ id: string }>, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job) { res.status(404).json({ error: "No such job." }); return; }
+  if (job.status !== "done") { res.status(409).json({ error: "Job is not done yet." }); return; }
+  if (!job.capture) { res.status(409).json({ error: "Job capture data unavailable." }); return; }
+
+  const stats = parseUserStats(req.body);
+  if (stats) job.userStats = stats;
+  job.step = "Regenerating growth report";
+  try {
+    const report = await generateGrowthReport(signalsFromCapture(job.capture), job.userStats);
+    job.growthReport = report;
+    await writeFile(path.join(job.outputDir, "growth-report.json"), JSON.stringify(report, null, 2), "utf8");
+    if (job.kitDir) await packageKit(job, job.kitDir, job.iconsDir);
+    job.step = "Done";
+    res.json({ report });
+  } catch (err) {
+    job.step = "Done";
+    res.status(500).json({ error: err instanceof Error ? err.message : "Report regeneration failed." });
   }
 });
 

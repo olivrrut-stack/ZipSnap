@@ -76,7 +76,7 @@ export const StoreCopySchema = z.object({
 export type StoreCopy = z.infer<typeof StoreCopySchema>;
 
 /** Maps well-known permissions to plain-English descriptions of what data they grant access to. */
-const PERMISSION_DATA_MAP: Record<string, string> = {
+export const PERMISSION_DATA_MAP: Record<string, string> = {
   history: "full browsing history (URLs visited, timestamps)",
   tabs: "tab titles, URLs, and navigation state for all open tabs",
   webNavigation: "page navigation events and URLs across all tabs",
