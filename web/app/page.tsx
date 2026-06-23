@@ -64,7 +64,7 @@ export default function Home() {
                 A score plus specific steps to win more users and make your extension acquisition-ready.
                 Free and instant.
               </p>
-              <Link className="btn btn-ghost" href="/grade">Grade my extension →</Link>
+              <Link className="btn btn-primary" href="/grade">Grade my extension →</Link>
             </div>
           </div>
         </section>

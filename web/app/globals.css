@@ -337,8 +337,17 @@ h1.hero-title .accent {
 }
 .btn-primary:hover {
   background: var(--chrome-sweep);
+  background-size: 200% 100%;
+  animation: btn-sweep 1.4s linear infinite;
   transform: translateY(-1px);
   box-shadow: 0 14px 38px rgba(66, 133, 244, 0.38);
+}
+@keyframes btn-sweep {
+  from { background-position: 0% 50%; }
+  to { background-position: 200% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary:hover { animation: none; }
 }
 .btn-primary:disabled {
   opacity: 0.5;
@@ -1478,3 +1487,79 @@ textarea.cb-editable:focus {
 }
 .tool-card-label--launch { color: var(--accent); }
 .tool-card-label--grow { color: var(--green); }
+
+/* ---- growth report: gamified score visuals ---- */
+.gr-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  margin-bottom: 16px;
+}
+@media (max-width: 560px) { .gr-hero { flex-direction: column; text-align: center; } }
+.gr-hero-ring { flex-shrink: 0; }
+.gr-hero-meta { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+@media (max-width: 560px) { .gr-hero-meta { align-items: center; } }
+.ring-num { font-family: var(--font-display), sans-serif; font-weight: 700; font-size: 18px; }
+.ring-num--big { font-size: 46px; }
+
+.gr-next { width: 100%; margin-top: 4px; }
+.gr-next-label { font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+.gr-next-label strong { color: var(--text); font-family: var(--font-mono), monospace; }
+.gr-next-bar { position: relative; height: 8px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; }
+.gr-next-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; transition: width 1s cubic-bezier(.2,.7,.2,1); }
+.gr-next-tick { position: absolute; top: 0; width: 1px; height: 100%; background: var(--bg); opacity: 0.6; }
+
+.gr-pillars-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 560px) { .gr-pillars-row { grid-template-columns: repeat(2, 1fr); } }
+.gr-mini {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+}
+.gr-mini-label {
+  font-family: var(--font-mono), monospace; font-size: 10.5px; letter-spacing: 0.03em;
+  color: var(--text-faint); text-align: center;
+}
+
+.gr-pillar-meta { display: flex; align-items: center; gap: 10px; }
+.gr-pillar-count {
+  font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: 0.04em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 999px;
+}
+.gr-pillar-count--high { background: rgba(234,67,53,0.12); color: var(--red); }
+
+.gr-rec--high { border-left: 3px solid var(--red); }
+.gr-rec--medium { border-left: 3px solid var(--yellow); }
+.gr-rec--low { border-left: 3px solid var(--accent); }
+
+.gr-deck-head {
+  font-family: var(--font-mono), monospace; font-size: 11.5px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--accent-2); margin: 8px 0 10px;
+}
+
+/* ---- kit listing readiness strip ---- */
+.readiness {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.readiness-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.readiness-title {
+  font-family: var(--font-mono), monospace; font-size: 11.5px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.readiness-count { font-family: var(--font-mono), monospace; font-size: 12px; color: var(--green); }
+.readiness-pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.rd-pill {
+  font-family: var(--font-mono), monospace; font-size: 11.5px;
+  padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--text-faint);
+}
+.rd-pill--ok {
+  border-color: rgba(52,168,83,0.3); background: rgba(52,168,83,0.08); color: var(--green);
+}

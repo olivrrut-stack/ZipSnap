@@ -770,6 +770,30 @@ function Results({
             </button>
           </div>
           {recopyError && <div className="cb-error">{recopyError}</div>}
+          {(() => {
+            const items = [
+              { label: "Title", ok: !!copy.title },
+              { label: "Short desc", ok: !!copy.shortDescription },
+              { label: "Long desc", ok: !!copy.longDescription },
+              { label: `Keywords ${copy.keywords?.length ?? 0}/7`, ok: (copy.keywords?.length ?? 0) === 7 },
+              { label: "Permissions", ok: !!copy.permissionsAnalysis },
+              { label: "Privacy policy", ok: !!copy.privacyPolicy },
+            ];
+            const ready = items.filter((i) => i.ok).length;
+            return (
+              <div className="readiness">
+                <div className="readiness-head">
+                  <span className="readiness-title">Listing readiness</span>
+                  <span className="readiness-count">{ready}/{items.length} ready</span>
+                </div>
+                <div className="readiness-pills">
+                  {items.map((i) => (
+                    <span key={i.label} className={`rd-pill ${i.ok ? "rd-pill--ok" : ""}`}>{i.ok ? "✓" : "○"} {i.label}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           {copy.title && (
             <div className="copy-block">
               <div className="cb-head">
