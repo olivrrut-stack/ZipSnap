@@ -1,8 +1,8 @@
 /**
- * Fixed metallic backdrop: a gunmetal base, the technical grid, and a polished
- * silver sheen up top, plus a sparse scattering of tiny twinkling sparkles (mostly
- * silver, a few in Chrome accent colors) like light glinting off polished chrome.
- * No clouds, no image files; stays dark so the UI reads cleanly on top.
+ * Fixed polished-chrome backdrop. The metal look (base, technical grid, diagonal
+ * reflective streaks, silver sheen) is all CSS on .metal-backdrop; this component
+ * adds a sparse scatter of tiny twinkling sparkles (mostly silver, a few in Chrome
+ * accent colors) on top. No image files; stays dark so the UI reads cleanly.
  */
 
 // Deterministic positions so server and client render identically (no randomness).
@@ -28,27 +28,6 @@ const SPARKLES: Array<{ top: string; left: string; s: number; d: number; dur: nu
 export default function MetalBackdrop() {
   return (
     <div aria-hidden className="metal-backdrop">
-      <svg className="metal-backdrop-svg" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="mb-base" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#15171f" />
-            <stop offset="58%" stopColor="#0a0b0e" />
-            <stop offset="100%" stopColor="#08090b" />
-          </linearGradient>
-          <radialGradient id="mb-sheen" cx="50%" cy="-6%" r="72%">
-            <stop offset="0%" stopColor="#e4eaf4" stopOpacity="0.2" />
-            <stop offset="52%" stopColor="#aeb8c8" stopOpacity="0.05" />
-            <stop offset="100%" stopColor="#aeb8c8" stopOpacity="0" />
-          </radialGradient>
-          <pattern id="mb-grid" width="46" height="46" patternUnits="userSpaceOnUse">
-            <path d="M46 0 H0 V46" fill="none" stroke="#96a5c0" strokeOpacity="0.05" strokeWidth="1" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#mb-base)" />
-        <rect width="100%" height="100%" fill="url(#mb-grid)" />
-        <rect width="100%" height="100%" fill="url(#mb-sheen)" />
-      </svg>
-
       {SPARKLES.map((sp, i) => {
         const accent = sp.c ? `var(--${sp.c})` : undefined;
         return (
