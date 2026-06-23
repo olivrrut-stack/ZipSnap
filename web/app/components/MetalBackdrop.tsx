@@ -1,59 +1,72 @@
 /**
- * Fixed, full-viewport metallic backdrop: a gunmetal base, the technical grid, a
- * polished sheen up top, and a FEW large, sparse procedural "chrome clouds" (SVG
- * fractal noise confined to soft blobs) rather than a screen-wide fog. No image
- * files; stays dark so the white UI and Chrome-colored accents read cleanly.
+ * Fixed metallic backdrop: a gunmetal base, the technical grid, and a polished
+ * silver sheen up top, plus a sparse scattering of tiny twinkling sparkles (mostly
+ * silver, a few in Chrome accent colors) like light glinting off polished chrome.
+ * No clouds, no image files; stays dark so the UI reads cleanly on top.
  */
+
+// Deterministic positions so server and client render identically (no randomness).
+const SPARKLES: Array<{ top: string; left: string; s: number; d: number; dur: number; c?: string }> = [
+  { top: "11%", left: "17%", s: 3, d: 0.0, dur: 4.2 },
+  { top: "7%", left: "41%", s: 2, d: 1.4, dur: 3.6 },
+  { top: "19%", left: "66%", s: 4, d: 0.6, dur: 5.0, c: "blue" },
+  { top: "14%", left: "83%", s: 2, d: 2.2, dur: 4.0 },
+  { top: "29%", left: "9%", s: 3, d: 1.0, dur: 4.6 },
+  { top: "25%", left: "52%", s: 2, d: 3.0, dur: 3.8, c: "green" },
+  { top: "37%", left: "88%", s: 3, d: 0.4, dur: 4.4 },
+  { top: "44%", left: "29%", s: 2, d: 2.6, dur: 5.2 },
+  { top: "9%", left: "72%", s: 3, d: 1.8, dur: 4.0, c: "yellow" },
+  { top: "32%", left: "76%", s: 2, d: 0.9, dur: 3.5 },
+  { top: "47%", left: "61%", s: 3, d: 3.4, dur: 4.8 },
+  { top: "21%", left: "36%", s: 2, d: 1.2, dur: 4.1 },
+  { top: "6%", left: "26%", s: 3, d: 2.0, dur: 4.5 },
+  { top: "40%", left: "47%", s: 2, d: 0.2, dur: 3.9 },
+  { top: "16%", left: "94%", s: 2, d: 2.8, dur: 4.3 },
+  { top: "34%", left: "19%", s: 2, d: 1.6, dur: 5.1 },
+];
+
 export default function MetalBackdrop() {
   return (
     <div aria-hidden className="metal-backdrop">
-      <svg
-        className="metal-backdrop-svg"
-        preserveAspectRatio="xMidYMid slice"
-        xmlns="http://www.w3.org/2000/svg"
-      >
+      <svg className="metal-backdrop-svg" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="mb-base" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#14161d" />
+            <stop offset="0%" stopColor="#15171f" />
             <stop offset="58%" stopColor="#0a0b0e" />
             <stop offset="100%" stopColor="#08090b" />
           </linearGradient>
-          <radialGradient id="mb-sheen" cx="50%" cy="-6%" r="70%">
-            <stop offset="0%" stopColor="#e2e8f3" stopOpacity="0.15" />
-            <stop offset="55%" stopColor="#aeb8c8" stopOpacity="0.04" />
+          <radialGradient id="mb-sheen" cx="50%" cy="-6%" r="72%">
+            <stop offset="0%" stopColor="#e4eaf4" stopOpacity="0.2" />
+            <stop offset="52%" stopColor="#aeb8c8" stopOpacity="0.05" />
             <stop offset="100%" stopColor="#aeb8c8" stopOpacity="0" />
           </radialGradient>
-
-          {/* technical grid */}
           <pattern id="mb-grid" width="46" height="46" patternUnits="userSpaceOnUse">
             <path d="M46 0 H0 V46" fill="none" stroke="#96a5c0" strokeOpacity="0.05" strokeWidth="1" />
           </pattern>
-
-          {/* soft blob that confines each cloud to a large, soft-edged region */}
-          <radialGradient id="mb-blob" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#fff" stopOpacity="1" />
-            <stop offset="50%" stopColor="#fff" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-          </radialGradient>
-          <filter id="mb-cloud" x="-40%" y="-40%" width="180%" height="180%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.006 0.009" numOctaves={4} seed={6} stitchTiles="stitch" result="n" />
-            <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.82  0 0 0 0 0.87  0 0 0 0 0.97  0 0 0 0.9 -0.08" result="tex" />
-            <feComposite in="tex" in2="SourceGraphic" operator="in" result="clip" />
-            <feGaussianBlur in="clip" stdDeviation="1.4" />
-          </filter>
         </defs>
-
         <rect width="100%" height="100%" fill="url(#mb-base)" />
         <rect width="100%" height="100%" fill="url(#mb-grid)" />
         <rect width="100%" height="100%" fill="url(#mb-sheen)" />
-
-        {/* a couple of large, sparse clouds near the top */}
-        <g className="metal-backdrop-clouds" opacity="0.6">
-          <ellipse cx="30%" cy="12%" rx="33%" ry="15%" fill="url(#mb-blob)" filter="url(#mb-cloud)" />
-          <ellipse cx="81%" cy="6%" rx="24%" ry="12%" fill="url(#mb-blob)" filter="url(#mb-cloud)" />
-          <ellipse cx="58%" cy="25%" rx="21%" ry="10%" fill="url(#mb-blob)" filter="url(#mb-cloud)" />
-        </g>
       </svg>
+
+      {SPARKLES.map((sp, i) => {
+        const accent = sp.c ? `var(--${sp.c})` : undefined;
+        return (
+          <span
+            key={i}
+            className="mb-sparkle"
+            style={{
+              top: sp.top,
+              left: sp.left,
+              width: sp.s,
+              height: sp.s,
+              animationDelay: `${sp.d}s`,
+              animationDuration: `${sp.dur}s`,
+              ...(accent ? { background: accent, boxShadow: `0 0 8px 1px ${accent}` } : {}),
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

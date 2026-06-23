@@ -38,7 +38,7 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  /* The visible backdrop is drawn by <MetalBackdrop> (procedural chrome clouds);
+  /* The visible backdrop is drawn by <MetalBackdrop> (chrome sheen, grid, sparkles);
      this is just the base color behind it. */
   background-color: #08090b;
 }
@@ -1616,4 +1616,23 @@ textarea.cb-editable:focus {
 /* respect reduced motion for the score-ring fill */
 @media (prefers-reduced-motion: reduce) {
   .ring-arc { transition: none !important; }
+}
+
+/* sparkle glints on the chrome backdrop */
+.mb-sparkle {
+  position: absolute;
+  border-radius: 50%;
+  background: #eef3fb;
+  box-shadow: 0 0 7px 1px rgba(206, 222, 245, 0.6);
+  opacity: 0;
+  animation-name: mb-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes mb-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-sparkle { animation: none; opacity: 0.45; }
 }
