@@ -1443,3 +1443,38 @@ textarea.cb-editable:focus {
 .gr-idea-title { font-size: 13.5px; font-weight: 640; color: var(--text); margin-bottom: 4px; }
 .gr-idea-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.45; margin-bottom: 4px; }
 .gr-idea-rationale { font-size: 11.5px; color: var(--text-faint); line-height: 1.4; font-style: italic; }
+
+/* ---- launch / grow / sell lifecycle (Chrome-colored verbs as a through-line) ---- */
+.v--launch { color: var(--accent); }
+.v--grow { color: var(--green); }
+.v--sell { color: var(--yellow); }
+
+.lifecycle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 28px 0 6px;
+}
+.lc-stage { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.lc-stage .v {
+  font-family: var(--font-display), sans-serif;
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.lc-gloss {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+.lc-arrow { color: var(--text-faint); font-size: 18px; opacity: 0.45; }
+@media (max-width: 560px) {
+  .lifecycle { flex-direction: column; gap: 14px; }
+  .lc-arrow { transform: rotate(90deg); }
+}
+.tool-card-label--launch { color: var(--accent); }
+.tool-card-label--grow { color: var(--green); }

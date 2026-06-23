@@ -18,19 +18,38 @@ export default function Home() {
         <section className="hero">
           <span className="eyebrow">
             <span className="dot" />
-            Launch it. Grow it. Sell it.
+            Built for Chrome extension makers
           </span>
           <h1 className="hero-title">
-            Everything your Chrome extension needs <span className="accent">to win.</span>
+            The place you <span className="v v--launch">launch</span>,{" "}
+            <span className="v v--grow">grow</span>, and <span className="v v--sell">sell</span>{" "}
+            your Chrome extension.
           </h1>
           <p className="subhead">
-            ZipSnap turns your extension .zip into a complete Web Store kit, and grades it for growth and
-            acquisition. Two tools, one drop.
+            Drop your <span className="mono">.zip</span> once. ZipSnap builds your store kit, then grades
+            it for growth and acquisition, with the specific moves to win users and get bought.
           </p>
+
+          <div className="lifecycle" aria-hidden="true">
+            <div className="lc-stage">
+              <span className="v v--launch">Launch</span>
+              <span className="lc-gloss">store kit in minutes</span>
+            </div>
+            <span className="lc-arrow">→</span>
+            <div className="lc-stage">
+              <span className="v v--grow">Grow</span>
+              <span className="lc-gloss">win more users</span>
+            </div>
+            <span className="lc-arrow">→</span>
+            <div className="lc-stage">
+              <span className="v v--sell">Sell</span>
+              <span className="lc-gloss">get acquisition-ready</span>
+            </div>
+          </div>
 
           <div className="tool-cards">
             <div className="tool-card">
-              <div className="tool-card-label">Generate</div>
+              <div className="tool-card-label tool-card-label--launch">Launch</div>
               <h2 className="tool-card-title">Store kit generator</h2>
               <p className="tool-card-desc">
                 Screenshots, promo tiles, icons, and an AI-written listing, captured from your real
@@ -39,7 +58,7 @@ export default function Home() {
               <Link className="btn btn-primary" href="/generate">Generate my kit →</Link>
             </div>
             <div className="tool-card">
-              <div className="tool-card-label">Grade</div>
+              <div className="tool-card-label tool-card-label--grow">Grow &amp; sell</div>
               <h2 className="tool-card-title">Growth &amp; acquisition report</h2>
               <p className="tool-card-desc">
                 A score plus specific steps to win more users and make your extension acquisition-ready.
