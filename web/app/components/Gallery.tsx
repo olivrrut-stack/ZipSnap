@@ -1,21 +1,21 @@
 "use client";
 import React, { useState, useEffect } from "react";
 
-const STORE_TITLE = "FocusDash – Focus Timer & Productivity Tracker";
+const STORE_TITLE = "MYNT — Material You New Tab";
 const SHORT_DESC =
-  "Boost deep work with automatic focus tracking, pomodoro timers, and a distraction-blocking toolbar button — all without leaving your browser.";
-const KEYWORDS = ["focus timer", "pomodoro", "time tracker", "deep work", "productivity", "work sessions", "distraction blocker"];
-const SAFE_PERMS = ["storage", "activeTab", "alarms"];
+  "A simple, beautiful new tab inspired by Google's Material You — clock, weather, search, and shortcuts, all themeable.";
+const KEYWORDS = ["new tab", "material you", "new tab page", "clock widget", "weather widget", "search shortcuts", "customizable"];
+const SAFE_PERMS = ["search", "bookmarks", "favicon"];
 const FLAGGED_PERMS = [
   {
-    perm: "history",
-    reason: "Broad browsing data access — add a clear justification to lower rejection risk.",
-    fix: "Mention in store listing",
+    perm: "bookmarks",
+    reason: "Optional permission — only used if you enable bookmark shortcuts, but reviewers may ask why it's requested.",
+    fix: "Justify in store listing",
   },
 ];
-const PRIVACY = `This Privacy Policy describes how FocusDash handles your information.
+const PRIVACY = `This Privacy Policy describes how MYNT (Material You New Tab) handles your information.
 
-Data collected: Session timings stored locally in your browser only. No data leaves your device. No accounts required. No third-party sharing.`;
+Data collected: Your settings are stored locally in your browser only. No personal data is collected, no accounts are required, and nothing is shared with third parties.`;
 
 function getS(large: boolean) {
   const f = large ? 1.55 : 1;
