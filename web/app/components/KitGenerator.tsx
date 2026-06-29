@@ -415,7 +415,7 @@ export default function KitGenerator() {
                   Generate my kit →
                 </button>
               </div>
-              <p className="hint" style={{ marginTop: 28 }}>No screenshots to take. No design tools. Free during beta.</p>
+              <p className="hint" style={{ marginTop: 28 }}>No screenshots to take. No design tools. Free.</p>
               <p className="hint" style={{ marginTop: 6 }}>Your extension is processed in a private session and deleted after 24 hours.</p>
             </>
           )}
@@ -631,7 +631,7 @@ export default function KitGenerator() {
                 </div>
                 <div className="faq-item">
                   <div className="faq-q">Is it really free?</div>
-                  <div className="faq-a">Yes, free during beta. No account needed. Drop your extension and go. We&apos;ll give plenty of notice before that changes. Early users get a discount.</div>
+                  <div className="faq-a">Yes, it&apos;s free. No account needed. Drop your extension and go.</div>
                 </div>
               </div>
             </section>
@@ -1009,7 +1009,7 @@ function Results({
 
       <div className="email-capture">
         {emailSent ? (
-          <p className="email-sent">Thanks, we&apos;ll email you about new features and pricing.</p>
+          <p className="email-sent">Thanks, we&apos;ll email you about new features.</p>
         ) : (
           <form className="email-form" onSubmit={submitEmail}>
             <p className="email-label">Get product updates.</p>

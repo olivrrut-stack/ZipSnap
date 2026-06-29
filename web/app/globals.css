@@ -880,9 +880,14 @@ h1.hero-title .accent {
   color: var(--text-faint);
   text-decoration: none;
   transition: color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
 }
 .footer-links a:hover {
   color: var(--text);
+}
+.footer-links a svg {
+  display: block;
 }
 
 @media (max-width: 760px) {
